@@ -1,4 +1,4 @@
-name: Daily tests
+name: Gumax-rf Daily
 
 on:
   push:

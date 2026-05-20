@@ -50,11 +50,12 @@ class GumaxCover(CoverEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        device_id_hex: str = self._entry.data[CONF_DEVICE_ID]
         return DeviceInfo(
-            identifiers={(DOMAIN, self._entry.data[CONF_DEVICE_ID])},
-            name=f"Gumax RF ({self._entry.data[CONF_DEVICE_ID]})",
+            identifiers={(DOMAIN, device_id_hex)},
+            name=f"Gumax RF ({device_id_hex})",
             manufacturer="Gumax",
-            model="433.92 MHz OOK",
+            model=f"{device_id_hex} (433.92 MHz)",
         )
 
     async def async_open_cover(self, **kwargs) -> None:
@@ -107,11 +108,12 @@ class GumaxCCCover(CoverEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        device_id_hex: str = self._entry.data[CONF_DEVICE_ID]
         return DeviceInfo(
-            identifiers={(DOMAIN, self._entry.data[CONF_DEVICE_ID])},
-            name=f"Gumax RF ({self._entry.data[CONF_DEVICE_ID]})",
+            identifiers={(DOMAIN, device_id_hex)},
+            name=f"Gumax RF ({device_id_hex})",
             manufacturer="Gumax",
-            model="433.92 MHz OOK",
+            model=f"{device_id_hex} (433.92 MHz)",
         )
 
     async def async_open_cover(self, **kwargs) -> None:

@@ -1,0 +1,73 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gumax RF",
+        "menu_options": {
+          "manual": "Enter device ID manually",
+          "learn": "Learn device ID from remote"
+        }
+      },
+      "manual": {
+        "title": "Gumax RF — manual",
+        "description": "Connect the Gumax RF integration to your ESPHome CC1101 bridge.",
+        "data": {
+          "esphome_node": "ESPHome node name",
+          "device_id": "Device ID (hex)"
+        },
+        "data_description": {
+          "esphome_node": "Select a detected 433 MHz capable ESPHome node, or type a custom name. Hyphens are automatically converted to underscores.",
+          "device_id": "32-bit device ID in hex (e.g. A1B2C3D4). Must match the ID the motors are paired to."
+        }
+      },
+      "learn": {
+        "title": "Gumax RF — learn from remote",
+        "description": "Select the ESPHome node and click Next. You will then have 10 seconds to press a button on your remote.",
+        "data": {
+          "esphome_node": "ESPHome node name"
+        },
+        "data_description": {
+          "esphome_node": "Select the 433 MHz capable ESPHome node that will receive the signal."
+        }
+      },
+      "learn_wait": {
+        "title": "Waiting for signal…",
+        "description": "**{remaining}** seconds remaining\n\nPress any button on your Gumax remote.\n\nCaptured device IDs:\n{log}"
+      },
+      "learn_result": {
+        "title": "Captured device IDs",
+        "description": "{log}",
+        "data": {
+          "device_id": "Device ID"
+        },
+        "data_description": {
+          "device_id": "Select a captured ID or type one manually."
+        }
+      }
+    },
+    "error": {
+      "invalid_device_id": "Invalid hex value (max 8 characters, e.g. A1B2C3D4)",
+      "no_signal_received": "No signal received within 10 seconds. Please try again.",
+      "decode_failed": "Signal received but could not recognise the device ID. Please try again."
+    },
+    "abort": {
+      "already_configured": "This device ID is already configured.",
+      "no_esphome_nodes": "No ESPHome node with 433 MHz support found. Make sure your CC1101 bridge is online and try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "View raw pulse timings",
+        "description": "Select a channel to view the raw pulse timings for all commands.",
+        "data": {
+          "channel": "Channel"
+        }
+      },
+      "show_code": {
+        "title": "Raw pulse timings",
+        "description": "**{channel}**\n\n**up:**\n{code_up}\n\n**down:**\n{code_down}\n\n**stop:**\n{code_stop}"
+      }
+    }
+  }
+}

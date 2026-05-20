@@ -1,0 +1,73 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gumax RF",
+        "menu_options": {
+          "manual": "Device ID handmatig invoeren",
+          "learn": "Device ID leren van afstandsbediening"
+        }
+      },
+      "manual": {
+        "title": "Gumax RF — handmatig",
+        "description": "Verbind de Gumax RF integratie met je ESPHome CC1101 bridge.",
+        "data": {
+          "esphome_node": "ESPHome node naam",
+          "device_id": "Device ID (hex)"
+        },
+        "data_description": {
+          "esphome_node": "Selecteer een gedetecteerd 433 MHz-capable ESPHome node, of typ een eigen naam. Koppeltekens worden automatisch underscores.",
+          "device_id": "32-bit device ID in hex (bijv. A1B2C3D4). Moet overeenkomen met het ID waarmee de motoren gekoppeld zijn."
+        }
+      },
+      "learn": {
+        "title": "Gumax RF — leren van afstandsbediening",
+        "description": "Selecteer de ESPHome node en klik op Volgende. Je hebt daarna 10 seconden om een knop op de afstandsbediening in te drukken.",
+        "data": {
+          "esphome_node": "ESPHome node naam"
+        },
+        "data_description": {
+          "esphome_node": "Selecteer de 433 MHz-capable ESPHome node die het signaal moet ontvangen."
+        }
+      },
+      "learn_wait": {
+        "title": "Wachten op signaal…",
+        "description": "Nog **{remaining}** seconden\n\nDruk op een knop op je Gumax afstandsbediening.\n\nGevangen device IDs:\n{log}"
+      },
+      "learn_result": {
+        "title": "Gevangen device IDs",
+        "description": "{log}",
+        "data": {
+          "device_id": "Device ID"
+        },
+        "data_description": {
+          "device_id": "Selecteer een gevangen ID of typ er handmatig een in."
+        }
+      }
+    },
+    "error": {
+      "invalid_device_id": "Ongeldige hex-waarde (maximaal 8 tekens, bijv. A1B2C3D4)",
+      "no_signal_received": "Geen signaal ontvangen binnen 10 seconden. Probeer opnieuw.",
+      "decode_failed": "Signaal ontvangen maar kon het device ID niet herkennen. Probeer opnieuw."
+    },
+    "abort": {
+      "already_configured": "Dit device ID is al geconfigureerd.",
+      "no_esphome_nodes": "Geen ESPHome node met 433 MHz ondersteuning gevonden. Zorg dat je CC1101 bridge online is en probeer opnieuw."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ruwe pulscodes bekijken",
+        "description": "Selecteer een kanaal om de ruwe pulstijden voor alle commando's te zien.",
+        "data": {
+          "channel": "Kanaal"
+        }
+      },
+      "show_code": {
+        "title": "Ruwe pulscodes",
+        "description": "**{channel}**\n\n**up:**\n{code_up}\n\n**down:**\n{code_down}\n\n**stop:**\n{code_stop}"
+      }
+    }
+  }
+}

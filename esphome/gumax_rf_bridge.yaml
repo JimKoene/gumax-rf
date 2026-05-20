@@ -1,0 +1,126 @@
+# ESPHome configuration for Gumax RF bridge (ESP32 + CC1101, 433.92 MHz OOK)
+#
+# CC1101 Pin layout - Top view:
+#   ----------------------------------------------
+#   | 1 - GND     2 - VCC          -------       | ----------
+#   | 3 - GDO0    4 - CSN         |       |      | Antenna
+#   | 5 - SCK     6 - MOSI        |       |      | Antenna
+#   | 7 - MISO    8 - GD02         -------       | ----------
+#   ----------------------------------------------
+#   1 - GND    - Ground
+#   2 - VCC    - 1.8V-3.6V
+#   3 - GDO0   - Module OUT
+#   4 - CSN    - SPI Chip Select
+#   5 - SCK    - SPI Clock
+#   6 - MOSI   - SPI Master Out, Slave In
+#   7 - MISO   - SPI Master In, Slave Out
+#   8 - GDO2   - Module OUT
+#
+# Wiring (ESP32 DevKit ↔ CC1101):
+#   3 - GDO0   → GPIO26  (transmit data)
+#   4 - CSN    → GPIO5
+#   5 - SCK    → GPIO18
+#   6 - MOSI   → GPIO23
+#   7 - MISO   → GPIO19
+#   8 - GDO2   → GPIO25  (receive data)
+#
+# NOTE: requires the cc1101 external component.
+# Flash: esphome run gumax_rf_bridge.yaml
+
+esphome:
+  name: gumax-rf
+  friendly_name: Gumax RF Controller
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging, defaults to DEBUG
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret gumax_api_key
+  actions:
+    - action: transmit_raw
+      variables:
+        pulses: string
+      then:
+        - remote_transmitter.transmit_raw:
+            code: !lambda |-
+              std::vector<int32_t> timings;
+              const char *str = pulses.c_str();
+              char *end;
+              while (*str) {
+                long val = strtol(str, &end, 10);
+                if (end == str) break;
+                timings.push_back((int32_t)val);
+                str = end;
+                if (*str == ',') str++;
+              }
+              return timings;
+            carrier_frequency: 0Hz
+
+
+ota:
+  - platform: esphome
+    password: !secret gumax_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Gumax-Rf Fallback Hotspot"
+    password: !secret gumax_ap_password
+
+captive_portal:
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+  miso_pin: GPIO19
+
+cc1101:
+  id: cc1101_chip
+  cs_pin: GPIO5
+  frequency: 433.92MHz
+  output_power: 10
+
+remote_transmitter:
+  id: rf_tx
+  pin:
+    number: GPIO26
+  carrier_duty_percent: 100%
+  non_blocking: true
+  
+  on_transmit:
+    then:
+      - cc1101.begin_tx: cc1101_chip
+  on_complete:
+    then:
+      - cc1101.begin_rx: cc1101_chip
+
+remote_receiver:
+  id: rf_rx
+  pin: 
+    number: GPIO25
+  tolerance: 35%
+  filter: 20us
+  idle: 20ms
+#  dump: raw 
+  on_raw:
+    then:
+      - homeassistant.event:
+          event: esphome.gumax_rf_capture
+          data:
+            pulses: !lambda |-
+              std::string s;
+              for (size_t i = 0; i < x.size(); i++) {
+                if (i) s += ',';
+                s += std::to_string(x[i]);
+              }
+              return s;

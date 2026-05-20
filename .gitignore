@@ -1,0 +1,19 @@
+# ESPHome secrets
+esphome/secrets.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Home Assistant
+homeassistant/.storage/
+homeassistant/secrets.yaml
+
+# Claude Code local settings (machine-specific permissions)
+.claude/
+
+# Editor
+.vscode/
+*.code-workspace

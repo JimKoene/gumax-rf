@@ -1,12 +1,12 @@
 {
   "domain": "gumax_rf",
   "name": "Gumax RF",
-  "version": "2026.5.20",
-  "documentation": "https://github.com/JimKoene/gumax-rf/blob/master/README.md",
+  "codeowners": ["@JimKoene"],
   "config_flow": true,
-  "iot_class": "local_push",
-  "requirements": [],
   "dependencies": [],
+  "documentation": "https://github.com/JimKoene/gumax-rf/blob/master/README.md",
+  "iot_class": "local_push",
   "issue_tracker": "https://github.com/JimKoene/gumax-rf/issues",
-  "codeowners": ["@JimKoene"]
+  "requirements": [],
+  "version": "2026.5.20"
 }

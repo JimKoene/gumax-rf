@@ -98,13 +98,14 @@ class GumaxCover(CoverEntity):
                     command,
                 )
                 return
-        logbook.async_log_entry(
-            self.hass,
-            name=self._attr_name,
-            message=_COMMAND_LABEL.get(command, command),
-            domain=DOMAIN,
-            entity_id=self.entity_id,
-        )
+        if "logbook" in self.hass.config.components:
+            logbook.async_log_entry(
+                self.hass,
+                name=self._attr_name,
+                message=_COMMAND_LABEL.get(command, command),
+                domain=DOMAIN,
+                entity_id=self.entity_id,
+            )
 
 
 class GumaxCCCover(CoverEntity):
@@ -168,10 +169,11 @@ class GumaxCCCover(CoverEntity):
                     command,
                 )
                 return
-        logbook.async_log_entry(
-            self.hass,
-            name=self._attr_name,
-            message=_COMMAND_LABEL.get(command, command),
-            domain=DOMAIN,
-            entity_id=self.entity_id,
-        )
+        if "logbook" in self.hass.config.components:
+            logbook.async_log_entry(
+                self.hass,
+                name=self._attr_name,
+                message=_COMMAND_LABEL.get(command, command),
+                domain=DOMAIN,
+                entity_id=self.entity_id,
+            )

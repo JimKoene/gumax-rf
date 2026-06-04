@@ -1,9 +1,9 @@
 {
   "domain": "gumax_rf",
   "name": "Gumax RF",
+  "after_dependencies": ["logbook"],
   "codeowners": ["@JimKoene"],
   "config_flow": true,
-  "after_dependencies": ["logbook"],
   "dependencies": [],
   "documentation": "https://github.com/JimKoene/gumax-rf/blob/master/README.md",
   "iot_class": "local_push",

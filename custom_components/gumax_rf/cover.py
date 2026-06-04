@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from homeassistant.components import logbook
 from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -11,14 +12,17 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from ._protocol import device_id_from_hex, encode, encode_cc
 from .const import (
     CHANNELS,
+    CONF_CHANNEL_PREFIX,
     CONF_DEVICE_ID,
     CONF_ESPHOME_NODE,
+    DEFAULT_CHANNEL_PREFIX,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 _REPEAT = 3  # transmit 3× for reliable reception
+_COMMAND_LABEL: dict[str, str] = {"up": "opened", "down": "closed", "stop": "stopped"}
 
 
 async def async_setup_entry(
@@ -45,8 +49,9 @@ class GumaxCover(CoverEntity):
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
         self._device_id_bin = device_id_from_hex(device_id_hex)
         self._node_name: str = entry.data[CONF_ESPHOME_NODE]
+        prefix = entry.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
         self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{channel}"
-        self._attr_name = f"K{channel}"
+        self._attr_name = f"{prefix}{channel}"
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -70,6 +75,13 @@ class GumaxCover(CoverEntity):
     async def _transmit(self, command: str) -> None:
         pulses = encode(self._channel, command, self._device_id_bin)
         pulses_str = ",".join(str(p) for p in pulses)
+        _LOGGER.debug(
+            "Transmitting %s on channel %d via esphome.%s_transmit_raw (%d pulses)",
+            command,
+            self._channel,
+            self._node_name,
+            len(pulses),
+        )
         for _ in range(_REPEAT):
             try:
                 await self.hass.services.async_call(
@@ -80,12 +92,19 @@ class GumaxCover(CoverEntity):
                 )
             except Exception:
                 _LOGGER.exception(
-                    "Failed to send RF command via %s (channel %d, %s)",
+                    "Failed to send RF command via esphome.%s_transmit_raw (channel %d, %s)",
                     self._node_name,
                     self._channel,
                     command,
                 )
                 return
+        logbook.async_log_entry(
+            self.hass,
+            name=self._attr_name,
+            message=_COMMAND_LABEL.get(command, command),
+            domain=DOMAIN,
+            entity_id=self.entity_id,
+        )
 
 
 class GumaxCCCover(CoverEntity):
@@ -128,6 +147,12 @@ class GumaxCCCover(CoverEntity):
     async def _transmit(self, command: str) -> None:
         pulses = encode_cc(command, self._device_id_bin)
         pulses_str = ",".join(str(p) for p in pulses)
+        _LOGGER.debug(
+            "Transmitting CC %s via esphome.%s_transmit_raw (%d pulses)",
+            command,
+            self._node_name,
+            len(pulses),
+        )
         for _ in range(_REPEAT):
             try:
                 await self.hass.services.async_call(
@@ -138,8 +163,15 @@ class GumaxCCCover(CoverEntity):
                 )
             except Exception:
                 _LOGGER.exception(
-                    "Failed to send CC RF command via %s (%s)",
+                    "Failed to send CC RF command via esphome.%s_transmit_raw (%s)",
                     self._node_name,
                     command,
                 )
                 return
+        logbook.async_log_entry(
+            self.hass,
+            name=self._attr_name,
+            message=_COMMAND_LABEL.get(command, command),
+            domain=DOMAIN,
+            entity_id=self.entity_id,
+        )

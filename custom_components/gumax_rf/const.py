@@ -2,7 +2,10 @@ DOMAIN = "gumax_rf"
 
 CONF_ESPHOME_NODE = "esphome_node"
 CONF_DEVICE_ID = "device_id"
+CONF_CHANNEL_PREFIX = "channel_prefix"
 
 DEFAULT_DEVICE_ID = "A1B2C3D4"
+DEFAULT_CHANNEL_PREFIX = "C"
+MAX_PREFIX_LENGTH = 12
 
 CHANNELS = list(range(1, 17))

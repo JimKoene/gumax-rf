@@ -43,6 +43,16 @@
         "data_description": {
           "device_id": "Selecteer een gevangen ID of typ er handmatig een in."
         }
+      },
+      "prefix": {
+        "title": "Kanaalnaam voorvoegsel",
+        "description": "Stel een voorvoegsel in voor kanaalnamen (max. 12 tekens). CC blijft altijd CC.\n\nKanaal 1 krijgt de naam: **{example}**",
+        "data": {
+          "channel_prefix": "Voorvoegsel"
+        },
+        "data_description": {
+          "channel_prefix": "Bijv. 'C' → C1, C2 … of 'Scherm' → Scherm1, Scherm2 …"
+        }
       }
     },
     "error": {
@@ -58,6 +68,23 @@
   "options": {
     "step": {
       "init": {
+        "title": "Gumax RF instellingen",
+        "menu_options": {
+          "configure_prefix": "Kanaalnaam voorvoegsel instellen",
+          "view_codes": "Ruwe pulscodes bekijken"
+        }
+      },
+      "configure_prefix": {
+        "title": "Kanaalnaam voorvoegsel",
+        "description": "Stel een eigen voorvoegsel in voor kanaalnamen (max. 12 tekens). CC blijft altijd CC.\n\nKanaal 1 krijgt de naam: **{example}**",
+        "data": {
+          "channel_prefix": "Voorvoegsel"
+        },
+        "data_description": {
+          "channel_prefix": "Bijv. 'C' → C1, C2 … of 'Scherm' → Scherm1, Scherm2 …"
+        }
+      },
+      "view_codes": {
         "title": "Ruwe pulscodes bekijken",
         "description": "Selecteer een kanaal om de ruwe pulstijden voor alle commando's te zien.",
         "data": {
@@ -68,6 +95,10 @@
         "title": "Ruwe pulscodes",
         "description": "**{channel}**\n\n**up:**\n{code_up}\n\n**down:**\n{code_down}\n\n**stop:**\n{code_stop}"
       }
+    },
+    "error": {
+      "invalid_prefix": "Voorvoegsel mag niet leeg zijn.",
+      "invalid_prefix_too_long": "Voorvoegsel mag maximaal 12 tekens zijn."
     }
   }
 }

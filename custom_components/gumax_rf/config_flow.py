@@ -15,10 +15,13 @@ from homeassistant.helpers.selector import (
 )
 from ._protocol import decode_device_id, device_id_from_hex, encode, encode_cc
 from .const import (
+    CONF_CHANNEL_PREFIX,
     CONF_DEVICE_ID,
     CONF_ESPHOME_NODE,
+    DEFAULT_CHANNEL_PREFIX,
     DEFAULT_DEVICE_ID,
     DOMAIN,
+    MAX_PREFIX_LENGTH,
 )
 
 if TYPE_CHECKING:
@@ -95,6 +98,8 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._capture_task: asyncio.Task | None = None
         self._captured_ids: dict[str, int] = {}
         self._capture_start: float | None = None
+        self._pending_data: dict = {}
+        self._pending_title: str = ""
 
     # ------------------------------------------------------------------
     # Entry point — choose setup method
@@ -130,10 +135,9 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 await self.async_set_unique_id(user_input[CONF_DEVICE_ID])
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title=f"Gumax RF ({user_input[CONF_DEVICE_ID]})",
-                    data=user_input,
-                )
+                self._pending_data = user_input
+                self._pending_title = f"Gumax RF ({user_input[CONF_DEVICE_ID]})"
+                return await self.async_step_prefix()
 
         schema = vol.Schema(
             {
@@ -230,10 +234,9 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(device_id)
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title=f"Gumax RF ({device_id})",
-                    data={CONF_ESPHOME_NODE: self._selected_node, CONF_DEVICE_ID: device_id},
-                )
+                self._pending_data = {CONF_ESPHOME_NODE: self._selected_node, CONF_DEVICE_ID: device_id}
+                self._pending_title = f"Gumax RF ({device_id})"
+                return await self.async_step_prefix()
 
         options = [
             {"value": did, "label": f"{did} ({count}×)"}
@@ -256,6 +259,43 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=schema,
             errors=errors,
             description_placeholders={"log": self._format_capture_log()},
+        )
+
+    # ------------------------------------------------------------------
+    # Prefix step (shared by manual and learn flows)
+    # ------------------------------------------------------------------
+
+    async def async_step_prefix(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            prefix = user_input.get(CONF_CHANNEL_PREFIX, "").strip()
+            if not prefix:
+                errors[CONF_CHANNEL_PREFIX] = "invalid_prefix"
+            elif len(prefix) > MAX_PREFIX_LENGTH:
+                errors[CONF_CHANNEL_PREFIX] = "invalid_prefix_too_long"
+            else:
+                return self.async_create_entry(
+                    title=self._pending_title,
+                    data=self._pending_data,
+                    options={CONF_CHANNEL_PREFIX: prefix},
+                )
+
+        current = (
+            user_input.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX).strip()
+            if user_input and errors
+            else DEFAULT_CHANNEL_PREFIX
+        )
+        schema = vol.Schema(
+            {vol.Required(CONF_CHANNEL_PREFIX, default=DEFAULT_CHANNEL_PREFIX): str}
+        )
+        return self.async_show_form(
+            step_id="prefix",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"example": f"{current}1"},
         )
 
     # ------------------------------------------------------------------
@@ -295,27 +335,80 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
-    """Options flow — view raw pulse timings per channel/command."""
+    """Options flow — configure channel prefix and view raw pulse timings."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         super().__init__(config_entry)
-        self._channel: str = "K1"
+        self._selected_channel: str = "1"
 
     # ------------------------------------------------------------------
-    # Step 1: pick channel
+    # Step 1: menu
     # ------------------------------------------------------------------
 
     async def async_step_init(
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
-        if user_input is not None:
-            self._channel = user_input["channel"]
-            return await self.async_step_show_code()
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["configure_prefix", "view_codes"],
+        )
 
-        channel_options = [f"K{i}" for i in range(1, 17)] + ["CC"]
+    # ------------------------------------------------------------------
+    # Step 2a: configure channel prefix
+    # ------------------------------------------------------------------
+
+    async def async_step_configure_prefix(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        errors: dict[str, str] = {}
+        current_prefix = self.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
+
+        if user_input is not None:
+            prefix = user_input.get(CONF_CHANNEL_PREFIX, "").strip()
+            if not prefix:
+                errors[CONF_CHANNEL_PREFIX] = "invalid_prefix"
+            elif len(prefix) > MAX_PREFIX_LENGTH:
+                errors[CONF_CHANNEL_PREFIX] = "invalid_prefix_too_long"
+            else:
+                return self.async_create_entry(
+                    data={**self.options, CONF_CHANNEL_PREFIX: prefix}
+                )
+
+        example_prefix = (
+            user_input.get(CONF_CHANNEL_PREFIX, current_prefix).strip()
+            if user_input and errors
+            else current_prefix
+        )
         schema = vol.Schema(
             {
-                vol.Required("channel", default=self._channel): SelectSelector(
+                vol.Required(CONF_CHANNEL_PREFIX, default=current_prefix): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="configure_prefix",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"example": f"{example_prefix}1"},
+        )
+
+    # ------------------------------------------------------------------
+    # Step 2b: pick channel to view pulse codes
+    # ------------------------------------------------------------------
+
+    async def async_step_view_codes(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if user_input is not None:
+            self._selected_channel = user_input["channel"]
+            return await self.async_step_show_code()
+
+        prefix = self.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
+        channel_options = [
+            {"value": str(i), "label": f"{prefix}{i}"} for i in range(1, 17)
+        ] + [{"value": "CC", "label": "CC"}]
+        schema = vol.Schema(
+            {
+                vol.Required("channel", default=self._selected_channel): SelectSelector(
                     SelectSelectorConfig(
                         options=channel_options,
                         mode=SelectSelectorMode.DROPDOWN,
@@ -323,36 +416,40 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
                 ),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="view_codes", data_schema=schema)
 
     # ------------------------------------------------------------------
-    # Step 2: display all three commands — "Next" returns to step 1
+    # Step 3: display all three commands — "Next" returns to step 2b
     # ------------------------------------------------------------------
 
     async def async_step_show_code(
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
         if user_input is not None:
-            return await self.async_step_init()
+            return await self.async_step_view_codes()
 
         device_id_hex: str = self.config_entry.data[CONF_DEVICE_ID]
         device_id_bin = device_id_from_hex(device_id_hex)
-        if self._channel == "CC":
+        prefix = self.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
+
+        if self._selected_channel == "CC":
             pulses_up = encode_cc("up", device_id_bin)
             pulses_down = encode_cc("down", device_id_bin)
             pulses_stop = encode_cc("stop", device_id_bin)
+            channel_label = "CC"
         else:
-            channel_num = int(self._channel[1:])
+            channel_num = int(self._selected_channel)
             pulses_up = encode(channel_num, "up", device_id_bin)
             pulses_down = encode(channel_num, "down", device_id_bin)
             pulses_stop = encode(channel_num, "stop", device_id_bin)
+            channel_label = f"{prefix}{channel_num}"
 
         return self.async_show_form(
             step_id="show_code",
             data_schema=vol.Schema({}),
             last_step=False,
             description_placeholders={
-                "channel": self._channel,
+                "channel": channel_label,
                 "code_up": ", ".join(str(p) for p in pulses_up),
                 "code_down": ", ".join(str(p) for p in pulses_down),
                 "code_stop": ", ".join(str(p) for p in pulses_stop),

@@ -43,6 +43,16 @@
         "data_description": {
           "device_id": "Select a captured ID or type one manually."
         }
+      },
+      "prefix": {
+        "title": "Channel name prefix",
+        "description": "Set a prefix for channel names (max. 12 characters). CC always stays CC.\n\nChannel 1 will be named: **{example}**",
+        "data": {
+          "channel_prefix": "Prefix"
+        },
+        "data_description": {
+          "channel_prefix": "E.g. 'C' → C1, C2 … or 'Screen' → Screen1, Screen2 …"
+        }
       }
     },
     "error": {
@@ -58,6 +68,23 @@
   "options": {
     "step": {
       "init": {
+        "title": "Gumax RF settings",
+        "menu_options": {
+          "configure_prefix": "Set channel name prefix",
+          "view_codes": "View raw pulse timings"
+        }
+      },
+      "configure_prefix": {
+        "title": "Channel name prefix",
+        "description": "Set a custom prefix for channel names (max. 12 characters). CC always stays CC.\n\nChannel 1 will be named: **{example}**",
+        "data": {
+          "channel_prefix": "Prefix"
+        },
+        "data_description": {
+          "channel_prefix": "E.g. 'C' → C1, C2 … or 'Screen' → Screen1, Screen2 …"
+        }
+      },
+      "view_codes": {
         "title": "View raw pulse timings",
         "description": "Select a channel to view the raw pulse timings for all commands.",
         "data": {
@@ -68,6 +95,10 @@
         "title": "Raw pulse timings",
         "description": "**{channel}**\n\n**up:**\n{code_up}\n\n**down:**\n{code_down}\n\n**stop:**\n{code_stop}"
       }
+    },
+    "error": {
+      "invalid_prefix": "Prefix must not be empty.",
+      "invalid_prefix_too_long": "Prefix may be at most 12 characters."
     }
   }
 }

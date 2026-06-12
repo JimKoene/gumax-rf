@@ -192,6 +192,39 @@ Every entity supports the **Open**, **Close**, and **Stop** actions.
 - Keep the ESP32 and the motor receiver close together during initial tests
 - Check the ESPHome logs via **ESPHome → gumax-rf → Logs**
 
+### Device ID was learned successfully, but sending commands fails
+
+If the **Learn** flow worked (the Device ID was captured from your remote), the ESP32 and CC1101 are physically working and connected to HA. A `transmit_raw not found` error in the HA logs means the `transmit_raw` action is not exposed by ESPHome — typically because the `api.actions` block is missing or was removed from the YAML.
+
+To isolate whether the transmitter is working, temporarily comment out the entire `remote_receiver` block in your ESPHome YAML:
+
+```yaml
+# remote_receiver:
+#   id: rf_rx
+#   ...
+```
+
+Also comment out the `on_transmit` / `on_complete` callbacks in `remote_transmitter` that switch the CC1101 between RX and TX mode, so the chip stays in transmit mode:
+
+```yaml
+remote_transmitter:
+  id: rf_tx
+  pin:
+    number: GPIO26
+  carrier_duty_percent: 100%
+  non_blocking: true
+  # on_transmit:
+  #   then:
+  #     - cc1101.begin_tx: cc1101_chip
+  # on_complete:
+  #   then:
+  #     - cc1101.begin_rx: cc1101_chip
+```
+
+Reflash the device and try sending a command from Home Assistant. If the shutter responds, the CC1101 was getting stuck switching between RX and TX mode.
+
+If you have no plans to add more remotes in the future, you can leave the receiver and the mode-switch callbacks commented out permanently. The receiver is only needed for the **Learn** flow to capture Device IDs — once all your remotes are configured, it serves no purpose.
+
 ---
 
 ## Technical details

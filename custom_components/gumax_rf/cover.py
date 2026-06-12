@@ -6,6 +6,7 @@ from homeassistant.components import logbook
 from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceNotFound
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -90,6 +91,21 @@ class GumaxCover(CoverEntity):
                     {"pulses": pulses_str},
                     blocking=True,
                 )
+            except ServiceNotFound:
+                esphome_services = self.hass.services.async_services().get("esphome", {})
+                node_online = any(s.startswith(f"{self._node_name}_") for s in esphome_services)
+                if node_online:
+                    _LOGGER.error(
+                        "ESPHome node '%s' is online but does not expose 'transmit_raw' — "
+                        "check remote_transmitter configuration in ESPHome YAML",
+                        self._node_name,
+                    )
+                else:
+                    _LOGGER.error(
+                        "ESPHome node '%s' is offline or not connected to Home Assistant",
+                        self._node_name,
+                    )
+                return
             except Exception:
                 _LOGGER.exception(
                     "Failed to send RF command via esphome.%s_transmit_raw (channel %d, %s)",
@@ -162,6 +178,21 @@ class GumaxCCCover(CoverEntity):
                     {"pulses": pulses_str},
                     blocking=True,
                 )
+            except ServiceNotFound:
+                esphome_services = self.hass.services.async_services().get("esphome", {})
+                node_online = any(s.startswith(f"{self._node_name}_") for s in esphome_services)
+                if node_online:
+                    _LOGGER.error(
+                        "ESPHome node '%s' is online but does not expose 'transmit_raw' — "
+                        "check remote_transmitter configuration in ESPHome YAML",
+                        self._node_name,
+                    )
+                else:
+                    _LOGGER.error(
+                        "ESPHome node '%s' is offline or not connected to Home Assistant",
+                        self._node_name,
+                    )
+                return
             except Exception:
                 _LOGGER.exception(
                     "Failed to send CC RF command via esphome.%s_transmit_raw (%s)",

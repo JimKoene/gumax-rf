@@ -196,7 +196,28 @@ Every entity supports the **Open**, **Close**, and **Stop** actions.
 
 If the **Learn** flow worked (the Device ID was captured from your remote), the ESP32 and CC1101 are physically working and connected to HA. A `transmit_raw not found` error in the HA logs means the `transmit_raw` action is not exposed by ESPHome — typically because the `api.actions` block is missing or was removed from the YAML.
 
-To isolate whether the transmitter is working, temporarily comment out the entire `remote_receiver` block in your ESPHome YAML:
+#### Possible solution 1 — Disable non-blocking transmit (recommended first step)
+
+On single-core boards (e.g. ESP32-C3), `non_blocking: true` can cause a timing race where the first RF pulse fires before `cc1101.begin_tx` finishes its SPI transaction, so the CC1101 is not yet in TX mode when data arrives.
+
+Set `non_blocking` to `false`:
+
+```yaml
+remote_transmitter:
+  id: rf_tx
+  pin:
+    number: GPIO26   # adjust to your wiring
+  carrier_duty_percent: 100%
+  non_blocking: false
+```
+
+Reflash and test. The ESP main loop will wait for the transmission to finish (~100 ms per repeat) but this delay is not visible to Home Assistant.
+
+> **Note:** On dual-core boards (standard ESP32 DevKit) `non_blocking: true` is preferred and does not have this issue.
+
+#### Possible solution 2 — Isolate the transmitter
+
+To check whether the CC1101 is getting stuck switching between RX and TX mode, temporarily comment out the entire `remote_receiver` block:
 
 ```yaml
 # remote_receiver:
@@ -204,7 +225,7 @@ To isolate whether the transmitter is working, temporarily comment out the entir
 #   ...
 ```
 
-Also comment out the `on_transmit` / `on_complete` callbacks in `remote_transmitter` that switch the CC1101 between RX and TX mode, so the chip stays in transmit mode:
+Also comment out the `on_transmit` / `on_complete` callbacks so the CC1101 stays in transmit mode:
 
 ```yaml
 remote_transmitter:

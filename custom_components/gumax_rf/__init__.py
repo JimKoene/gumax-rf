@@ -5,7 +5,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX, DOMAIN
 
-PLATFORMS = ["cover"]
+PLATFORMS = ["binary_sensor", "cover", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

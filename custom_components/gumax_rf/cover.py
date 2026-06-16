@@ -5,7 +5,8 @@ import logging
 from homeassistant.components import logbook
 from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.exceptions import ServiceNotFound
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -33,6 +34,27 @@ async def async_setup_entry(
 ) -> None:
     entities: list[CoverEntity] = [GumaxCover(entry, ch) for ch in CHANNELS]
     entities.append(GumaxCCCover(entry))
+
+    node_name: str = entry.data[CONF_ESPHOME_NODE]
+    connectivity_id = f"binary_sensor.{node_name}_connectivity"
+
+    state = hass.states.get(connectivity_id)
+    if state is not None:
+        initial_available = state.state == "on"
+        for entity in entities:
+            entity._attr_available = initial_available
+
+    @callback
+    def _connectivity_changed(event) -> None:
+        new_state = event.data.get("new_state")
+        available = new_state is not None and new_state.state == "on"
+        for entity in entities:
+            entity.set_available(available)
+
+    entry.async_on_unload(
+        async_track_state_change_event(hass, [connectivity_id], _connectivity_changed)
+    )
+
     async_add_entities(entities)
 
 
@@ -63,6 +85,11 @@ class GumaxCover(CoverEntity):
             manufacturer="Gumax",
             model=f"{device_id_hex} (433.92 MHz)",
         )
+
+    @callback
+    def set_available(self, available: bool) -> None:
+        self._attr_available = available
+        self.async_write_ha_state()
 
     async def async_open_cover(self, **kwargs) -> None:
         await self._transmit("up")
@@ -151,6 +178,11 @@ class GumaxCCCover(CoverEntity):
             manufacturer="Gumax",
             model=f"{device_id_hex} (433.92 MHz)",
         )
+
+    @callback
+    def set_available(self, available: bool) -> None:
+        self._attr_available = available
+        self.async_write_ha_state()
 
     async def async_open_cover(self, **kwargs) -> None:
         await self._transmit("up")

@@ -196,11 +196,11 @@ Every entity supports the **Open**, **Close**, and **Stop** actions.
 
 If the **Learn** flow worked (the Device ID was captured from your remote), the ESP32 and CC1101 are physically working and connected to HA. A `transmit_raw not found` error in the HA logs means the `transmit_raw` action is not exposed by ESPHome — typically because the `api.actions` block is missing or was removed from the YAML.
 
-#### Possible solution 1 — Disable non-blocking transmit (recommended first step)
+#### Possible solution 1 — Verify non_blocking is set to false
 
-On single-core boards (e.g. ESP32-C3), `non_blocking: true` can cause a timing race where the first RF pulse fires before `cc1101.begin_tx` finishes its SPI transaction, so the CC1101 is not yet in TX mode when data arrives.
+The default configuration ships with `non_blocking: false`, which is safe on both single-core (ESP32-C3) and dual-core boards. On single-core boards, `non_blocking: true` can cause a timing race where the first RF pulse fires before `cc1101.begin_tx` finishes its SPI transaction, so the CC1101 is not yet in TX mode when data arrives.
 
-Set `non_blocking` to `false`:
+Make sure your config has:
 
 ```yaml
 remote_transmitter:
@@ -213,7 +213,7 @@ remote_transmitter:
 
 Reflash and test. The ESP main loop will wait for the transmission to finish (~100 ms per repeat) but this delay is not visible to Home Assistant.
 
-> **Note:** On dual-core boards (standard ESP32 DevKit) `non_blocking: true` is preferred and does not have this issue.
+> **Note:** On dual-core boards (standard ESP32 DevKit) you may set `non_blocking: true` for a marginally more responsive main loop, but it is not necessary.
 
 #### Possible solution 2 — Isolate the transmitter
 

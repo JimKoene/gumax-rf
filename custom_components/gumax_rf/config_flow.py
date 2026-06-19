@@ -13,7 +13,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
 )
-from ._protocol import decode_device_id, device_id_from_hex, encode, encode_cc
+from ._protocol import decode_device_id, decode_signal, device_id_from_hex, encode, encode_cc
 from .const import (
     CONF_CHANNEL_PREFIX,
     CONF_DEVICE_ID,
@@ -340,6 +340,12 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         super().__init__(config_entry)
         self._selected_channel: str = "1"
+        self._unsub_capture: Callable[[], None] | None = None
+        self._capture_task_opt: asyncio.Task | None = None
+        self._capture_start_opt: float | None = None
+        self._last_raw: str | None = None
+        self._last_signal: dict | None = None
+        self._capture_error: str | None = None
 
     # ------------------------------------------------------------------
     # Step 1: menu
@@ -350,7 +356,7 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
     ) -> config_entries.ConfigFlowResult:
         return self.async_show_menu(
             step_id="init",
-            menu_options=["configure_prefix", "view_codes"],
+            menu_options=["configure_prefix", "view_codes", "capture_signal"],
         )
 
     # ------------------------------------------------------------------
@@ -417,6 +423,130 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             }
         )
         return self.async_show_form(step_id="view_codes", data_schema=schema)
+
+    # ------------------------------------------------------------------
+    # Step 2c / 3 / 4: capture and analyse a live signal
+    # ------------------------------------------------------------------
+
+    async def async_step_capture_signal(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        errors: dict[str, str] = {}
+        if self._capture_error:
+            errors["base"] = self._capture_error
+            self._capture_error = None
+
+        if user_input is not None:
+            self._last_raw = None
+            self._last_signal = None
+            self._capture_start_opt = None
+            self._cleanup_capture_listener()
+            self._unsub_capture = self.hass.bus.async_listen(
+                _RF_CAPTURE_EVENT, self._on_signal_capture
+            )
+            return await self.async_step_capture_signal_wait()
+
+        return self.async_show_form(
+            step_id="capture_signal",
+            data_schema=vol.Schema({}),
+            errors=errors,
+        )
+
+    async def async_step_capture_signal_wait(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if self._capture_start_opt is None:
+            self._capture_start_opt = time.monotonic()
+
+        if self._last_raw is not None:
+            return self.async_show_progress_done(next_step_id="capture_signal_result")
+
+        elapsed = time.monotonic() - self._capture_start_opt
+        remaining = max(0.0, _CAPTURE_TIMEOUT - elapsed)
+
+        if remaining > 0:
+            self._capture_task_opt = self.hass.async_create_background_task(
+                asyncio.sleep(min(_POLL_INTERVAL, remaining)),
+                "gumax_rf_signal_capture_poll",
+            )
+            return self.async_show_progress(
+                step_id="capture_signal_wait",
+                progress_action="capture_signal_wait",
+                progress_task=self._capture_task_opt,
+                description_placeholders={"remaining": str(int(remaining))},
+            )
+
+        self._cleanup_capture_listener()
+        self._capture_start_opt = None
+        self._capture_error = "no_signal_received"
+        return self.async_show_progress_done(next_step_id="capture_signal")
+
+    async def async_step_capture_signal_result(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if user_input is not None:
+            return await self.async_step_capture_signal()
+
+        sig = self._last_signal or {}
+        device_id = sig.get("device_id") or "?"
+        channel_raw = sig.get("channel")
+        command_raw = sig.get("command")
+
+        prefix = self.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
+        if channel_raw == "CC":
+            channel_label = "CC"
+        elif channel_raw is not None:
+            channel_label = f"{prefix}{channel_raw}"
+        else:
+            channel_label = "?"
+
+        checksum = sig.get("checksum")
+        checksum_valid = sig.get("checksum_valid")
+        if checksum is not None:
+            checksum_label = f"0x{checksum:02X}"
+            checksum_valid_label = "✓" if checksum_valid else "✗"
+        else:
+            checksum_label = "?"
+            checksum_valid_label = "?"
+
+        return self.async_show_form(
+            step_id="capture_signal_result",
+            data_schema=vol.Schema({}),
+            last_step=False,
+            description_placeholders={
+                "raw": self._last_raw or "–",
+                "device_id": device_id,
+                "channel": channel_label,
+                "command": command_raw or "?",
+                "checksum": checksum_label,
+                "checksum_valid": checksum_valid_label,
+            },
+        )
+
+    @callback
+    def _on_signal_capture(self, event) -> None:
+        if self._last_raw is not None:
+            return
+        pulses_str: str = event.data.get("pulses", "")
+        if not pulses_str:
+            return
+        try:
+            pulses = [int(x) for x in pulses_str.split(",") if x.strip()]
+        except ValueError:
+            return
+        self._last_raw = pulses_str
+        self._last_signal = decode_signal(pulses)
+        self._cleanup_capture_listener()
+
+    def _cleanup_capture_listener(self) -> None:
+        if self._unsub_capture is not None:
+            self._unsub_capture()
+            self._unsub_capture = None
+
+    def async_remove(self) -> None:
+        self._cleanup_capture_listener()
+        if self._capture_task_opt and not self._capture_task_opt.done():
+            self._capture_task_opt.cancel()
 
     # ------------------------------------------------------------------
     # Step 3: display all three commands — "Next" returns to step 2b

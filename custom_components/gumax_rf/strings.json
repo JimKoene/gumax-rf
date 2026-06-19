@@ -71,7 +71,8 @@
         "title": "Gumax RF instellingen",
         "menu_options": {
           "configure_prefix": "Kanaalnaam voorvoegsel instellen",
-          "view_codes": "Ruwe pulscodes bekijken"
+          "view_codes": "Berekende ruwe pulscodes bekijken",
+          "capture_signal": "Signaal opvangen en analyseren"
         }
       },
       "configure_prefix": {
@@ -94,11 +95,24 @@
       "show_code": {
         "title": "Ruwe pulscodes",
         "description": "**{channel}**\n\n**up:**\n{code_up}\n\n**down:**\n{code_down}\n\n**stop:**\n{code_stop}"
+      },
+      "capture_signal": {
+        "title": "Signaal opvangen en analyseren",
+        "description": "Klik op Volgende en druk daarna direct op een knop op je Gumax afstandsbediening. Je hebt 10 seconden."
+      },
+      "capture_signal_wait": {
+        "title": "Wachten op signaal…",
+        "description": "Nog **{remaining}** seconden\n\nDruk op een knop op je Gumax afstandsbediening."
+      },
+      "capture_signal_result": {
+        "title": "Ontvangen signaal",
+        "description": "**RAW signaal:**\n{raw}\n\n**Remote ID:** {device_id}\n**Kanaal:** {channel}\n**Commando:** {command}\n**Checksum:** {checksum} {checksum_valid}\n\nKlik op Volgende om opnieuw te capturen."
       }
     },
     "error": {
       "invalid_prefix": "Voorvoegsel mag niet leeg zijn.",
-      "invalid_prefix_too_long": "Voorvoegsel mag maximaal 12 tekens zijn."
+      "invalid_prefix_too_long": "Voorvoegsel mag maximaal 12 tekens zijn.",
+      "no_signal_received": "Geen signaal ontvangen binnen 10 seconden. Probeer opnieuw."
     }
   }
 }

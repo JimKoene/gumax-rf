@@ -76,37 +76,73 @@ _LONG = 600   # µs space → bit 0
 _SHORT = 280  # µs space → bit 1
 _TOLERANCE = 0.35
 
+_CH_VALS_REVERSE: dict[int, int] = {v: k for k, v in _CH_VALS.items()}
+_CMD_B7_REVERSE: dict[int, str] = {v: k for k, v in _CMD_B7.items()}
+_CC_B8_BASE = 216
 
-def decode_device_id(pulses: list[int]) -> str | None:
-    """Extract device ID (8-char hex) from raw captured pulse data.
 
-    Returns None if the signal cannot be decoded (too short, no sync pulse,
-    or unrecognised timings).
-    """
+def _extract_bits(pulses: list[int]) -> list[str] | None:
     sync_idx = next((i for i, p in enumerate(pulses) if p > _SYNC_THRESHOLD), None)
     if sync_idx is None:
         return None
-
     bits: list[str] = []
     for p in pulses[sync_idx + 1:]:
         if p >= 0:
-            continue  # skip mark pulses
+            continue
         abs_p = abs(p)
         if abs(abs_p - _LONG) < _LONG * _TOLERANCE:
             bits.append("0")
         elif abs(abs_p - _SHORT) < _SHORT * _TOLERANCE:
             bits.append("1")
+    return bits if bits else None
 
-    if len(bits) < 32:
+
+def decode_device_id(pulses: list[int]) -> str | None:
+    """Extract device ID (8-char hex) from raw captured pulse data."""
+    bits = _extract_bits(pulses)
+    if not bits or len(bits) < 32:
         return None
-
     return format(int("".join(bits[:32]), 2), "08X")
+
+
+def decode_signal(pulses: list[int]) -> dict | None:
+    """Decode a full RF capture into device_id, channel, and command.
+
+    Returns a dict with device_id (8-char hex), channel (1-16 or "CC"),
+    and command ("up"/"down"/"stop").
+    Returns None when no sync pulse, fewer than 56 data bits, or the channel
+    or command byte does not match any known value.
+    """
+    bits = _extract_bits(pulses)
+    if not bits or len(bits) < 56:
+        return None
+    device_id = format(int("".join(bits[:32]), 2), "08X")
+    b5 = int("".join(bits[32:40]), 2)
+    b6 = int("".join(bits[40:48]), 2)
+    b7 = int("".join(bits[48:56]), 2)
+    cv = (b5 << 8) | b6
+    channel: int | str | None = "CC" if cv == 0x7FFF else _CH_VALS_REVERSE.get(cv)
+    command: str | None = _CMD_B7_REVERSE.get(b7 & 0x7F)
+    if channel is None or command is None:
+        return None
+    b8 = int("".join(bits[56:64]), 2)
+    expected_b8 = (
+        _CC_B8_BASE + _CMD_OFFSET[command]
+        if channel == "CC"
+        else _checksum(cv, command)
+    )
+    return {
+        "device_id": device_id,
+        "channel": channel,
+        "command": command,
+        "checksum": b8,
+        "checksum_valid": b8 == expected_b8,
+    }
 
 
 # CC broadcast: cv=0x7FFF, b7 has bit 7 set (same rule as K9), b9=0.
 # b8 does not follow _checksum() — decoded captures show b8_base=216
 # instead of the formula's 87. The +28/+12 command offsets still apply.
-_CC_B8_BASE = 216
 
 
 def encode_cc(command: str, device_id: str = DEVICE_ID_DEFAULT) -> list[int]:

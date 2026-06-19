@@ -71,7 +71,8 @@
         "title": "Gumax RF settings",
         "menu_options": {
           "configure_prefix": "Set channel name prefix",
-          "view_codes": "View raw pulse timings"
+          "view_codes": "View raw calculated pulse timings",
+          "capture_signal": "Capture and analyse signal"
         }
       },
       "configure_prefix": {
@@ -94,11 +95,24 @@
       "show_code": {
         "title": "Raw pulse timings",
         "description": "**{channel}**\n\n**up:**\n{code_up}\n\n**down:**\n{code_down}\n\n**stop:**\n{code_stop}"
+      },
+      "capture_signal": {
+        "title": "Capture and analyse signal",
+        "description": "Click Next, then immediately press a button on your Gumax remote. You have 10 seconds."
+      },
+      "capture_signal_wait": {
+        "title": "Waiting for signal…",
+        "description": "**{remaining}** seconds remaining\n\nPress a button on your Gumax remote."
+      },
+      "capture_signal_result": {
+        "title": "Received signal",
+        "description": "**RAW signal:**\n{raw}\n\n**Remote ID:** {device_id}\n**Channel:** {channel}\n**Command:** {command}\n**Checksum:** {checksum} {checksum_valid}\n\nClick Next to capture again."
       }
     },
     "error": {
       "invalid_prefix": "Prefix must not be empty.",
-      "invalid_prefix_too_long": "Prefix may be at most 12 characters."
+      "invalid_prefix_too_long": "Prefix may be at most 12 characters.",
+      "no_signal_received": "No signal received within 10 seconds. Please try again."
     }
   }
 }

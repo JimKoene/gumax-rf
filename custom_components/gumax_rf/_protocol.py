@@ -131,12 +131,23 @@ def decode_signal(pulses: list[int]) -> dict | None:
         if channel == "CC"
         else _checksum(cv, command)
     )
+
+    device_id_bin = "".join(bits[:32])
+    ref_pulses = (
+        encode_cc(command, device_id_bin)
+        if channel == "CC"
+        else encode(channel, command, device_id_bin)
+    )
+    ref_bits = _extract_bits(ref_pulses)
+    encode_match = ref_bits is not None and "".join(ref_bits[:65]) == "".join(bits[:65])
+
     return {
         "device_id": device_id,
         "channel": channel,
         "command": command,
         "checksum": b8,
         "checksum_valid": b8 == expected_b8,
+        "encode_match": encode_match,
     }
 
 

@@ -509,6 +509,9 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             checksum_label = "?"
             checksum_valid_label = "?"
 
+        encode_match = sig.get("encode_match")
+        encode_match_label = "✓" if encode_match else ("✗" if encode_match is not None else "?")
+
         return self.async_show_form(
             step_id="capture_signal_result",
             data_schema=vol.Schema({}),
@@ -520,6 +523,7 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
                 "command": command_raw or "?",
                 "checksum": checksum_label,
                 "checksum_valid": checksum_valid_label,
+                "encode_match": encode_match_label,
             },
         )
 

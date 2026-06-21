@@ -106,7 +106,7 @@
       },
       "capture_signal_result": {
         "title": "Received signal",
-        "description": "**RAW signal:**\n{raw}\n\n**Remote ID:** {device_id}\n**Channel:** {channel}\n**Command:** {command}\n**Checksum:** {checksum} {checksum_valid}\n\nClick Next to capture again."
+        "description": "**Remote ID:** {device_id}\n**Channel:** {channel}\n**Command:** {command}\n**Checksum:** {checksum} {checksum_valid}\n**Encoder match:** {encode_match}\n\n**RAW signal:**\n{raw}\n\nClick Next to capture again."
       }
     },
     "error": {

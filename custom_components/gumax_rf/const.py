@@ -9,3 +9,5 @@ DEFAULT_CHANNEL_PREFIX = "C"
 MAX_PREFIX_LENGTH = 12
 
 CHANNELS = list(range(1, 17))
+
+RF_CAPTURE_EVENT = "esphome.gumax_rf_capture"

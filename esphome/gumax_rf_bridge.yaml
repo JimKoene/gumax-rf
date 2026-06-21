@@ -125,3 +125,7 @@ remote_receiver:
                 s += std::to_string(x[i]);
               }
               return s;
+
+switch:
+  - platform: restart
+    name: "Restart"

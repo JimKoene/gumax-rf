@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_DEVICE_ID,
     DOMAIN,
     MAX_PREFIX_LENGTH,
+    RF_CAPTURE_EVENT,
 )
 
 if TYPE_CHECKING:
@@ -30,13 +31,15 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 _TRANSMIT_RAW_SUFFIX = "_transmit_raw"
-_RF_CAPTURE_EVENT = "esphome.gumax_rf_capture"
 _CAPTURE_TIMEOUT = 10.0
 _POLL_INTERVAL = 1.0
 
 
 def _validate_device_id(value: str) -> str:
-    cleaned = value.strip().upper().lstrip("0X") or "0"
+    cleaned = value.strip().upper()
+    if cleaned.startswith("0X"):
+        cleaned = cleaned[2:]
+    cleaned = cleaned or "0"
     if len(cleaned) > 8:
         raise vol.Invalid("invalid_device_id")
     try:
@@ -165,7 +168,7 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._capture_start = None
             self._cleanup_listener()
             self._unsub_rf = self.hass.bus.async_listen(
-                _RF_CAPTURE_EVENT, self._on_rf_capture
+                RF_CAPTURE_EVENT, self._on_rf_capture
             )
             return await self.async_step_learn_wait()
 
@@ -442,7 +445,7 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             self._capture_start_opt = None
             self._cleanup_capture_listener()
             self._unsub_capture = self.hass.bus.async_listen(
-                _RF_CAPTURE_EVENT, self._on_signal_capture
+                RF_CAPTURE_EVENT, self._on_signal_capture
             )
             return await self.async_step_capture_signal_wait()
 

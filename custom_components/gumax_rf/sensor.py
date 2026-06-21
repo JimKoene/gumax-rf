@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import RestoreSensor, SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EntityCategory,
@@ -12,10 +12,12 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import CONF_DEVICE_ID, CONF_ESPHOME_NODE, DOMAIN
+from ._protocol import decode_signal
+from .const import CONF_CHANNEL_PREFIX, CONF_DEVICE_ID, CONF_ESPHOME_NODE, DEFAULT_CHANNEL_PREFIX, DOMAIN, RF_CAPTURE_EVENT
 from .helpers import device_info_for_entry
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,12 +56,37 @@ _ESPHOME_MIRRORS: list[_MirrorConfig] = [
 ]
 
 
+@dataclass
+class _LastCmdConfig:
+    name: str
+    id_suffix: str
+    field: str
+    device_class: SensorDeviceClass | None = None
+    icon: str | None = None
+
+
+_LAST_CMD_CONFIGS: list[_LastCmdConfig] = [
+    _LastCmdConfig("Last Command Device ID", "last_cmd_device_id", "device_id", icon="mdi:identifier"),
+    _LastCmdConfig("Last Command Channel", "last_cmd_channel", "channel", icon="mdi:remote"),
+    _LastCmdConfig("Last Command Action", "last_cmd_action", "action", icon="mdi:swap-vertical"),
+    _LastCmdConfig(
+        "Last Command Timestamp",
+        "last_cmd_timestamp",
+        "timestamp",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-outline",
+    ),
+]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     node_name: str = entry.data[CONF_ESPHOME_NODE]
+    last_cmd_sensors = [GumaxLastCmdSensor(entry, c) for c in _LAST_CMD_CONFIGS]
+
     async_add_entities([
         GumaxNodeSensor(entry),
         GumaxDeviceIdSensor(entry),
@@ -67,7 +94,27 @@ async def async_setup_entry(
             GumaxMirrorSensor(entry, config, f"sensor.{node_name}_{config.id_suffix}")
             for config in _ESPHOME_MIRRORS
         ],
+        *last_cmd_sensors,
     ])
+
+    device_id_hex: str = entry.data[CONF_DEVICE_ID]
+
+    @callback
+    def _on_rf_capture(event) -> None:
+        pulses_str: str = event.data.get("pulses", "")
+        if not pulses_str:
+            return
+        try:
+            pulses = [int(x) for x in pulses_str.split(",") if x.strip()]
+        except ValueError:
+            return
+        signal = decode_signal(pulses)
+        if signal is None or signal["device_id"] != device_id_hex:
+            return
+        for sensor in last_cmd_sensors:
+            sensor.update_from_signal(signal)
+
+    entry.async_on_unload(hass.bus.async_listen(RF_CAPTURE_EVENT, _on_rf_capture))
 
 
 class GumaxNodeSensor(SensorEntity):
@@ -184,3 +231,42 @@ class GumaxMirrorSensor(SensorEntity):
         self.async_on_remove(
             async_track_state_change_event(self.hass, [self._source_id], _source_changed)
         )
+
+
+class GumaxLastCmdSensor(RestoreSensor):
+    _attr_has_entity_name = True
+
+    def __init__(self, entry: ConfigEntry, config: _LastCmdConfig) -> None:
+        self._entry = entry
+        self._field = config.field
+        device_id_hex: str = entry.data[CONF_DEVICE_ID]
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{config.id_suffix}"
+        self._attr_name = config.name
+        self._attr_device_class = config.device_class
+        self._attr_icon = config.icon
+
+    @property
+    def device_info(self):
+        return device_info_for_entry(self._entry)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if (last_data := await self.async_get_last_sensor_data()) is not None:
+            self._attr_native_value = last_data.native_value
+
+    @callback
+    def update_from_signal(self, signal: dict) -> None:
+        if self._field == "device_id":
+            self._attr_native_value = signal["device_id"]
+        elif self._field == "channel":
+            ch = signal["channel"]
+            if ch == "CC":
+                self._attr_native_value = "CC"
+            else:
+                prefix = self._entry.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
+                self._attr_native_value = f"{prefix}{ch}"
+        elif self._field == "action":
+            self._attr_native_value = signal["command"].upper()
+        elif self._field == "timestamp":
+            self._attr_native_value = dt_util.utcnow()
+        self.async_write_ha_state()

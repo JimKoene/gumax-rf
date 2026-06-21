@@ -114,7 +114,7 @@ def decode_signal(pulses: list[int]) -> dict | None:
     or command byte does not match any known value.
     """
     bits = _extract_bits(pulses)
-    if not bits or len(bits) < 56:
+    if not bits or len(bits) < 65:
         return None
     device_id = format(int("".join(bits[:32]), 2), "08X")
     b5 = int("".join(bits[32:40]), 2)

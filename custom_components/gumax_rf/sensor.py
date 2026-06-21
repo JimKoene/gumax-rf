@@ -1,22 +1,22 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EntityCategory,
+    EVENT_HOMEASSISTANT_STARTED,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity_registry import async_entries_for_device, async_get as async_get_entity_registry
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import CONF_DEVICE_ID, CONF_ESPHOME_NODE, DOMAIN
+from .helpers import device_info_for_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,16 +28,18 @@ class _MirrorConfig:
     unit: str | None = None
     device_class: SensorDeviceClass | None = None
     state_class: SensorStateClass | None = None
+    icon: str | None = None
 
 
 _ESPHOME_MIRRORS: list[_MirrorConfig] = [
-    _MirrorConfig("IP Address", "ip_address"),
+    _MirrorConfig("IP Address", "ip_address", icon="mdi:ip-network"),
     _MirrorConfig(
         "Uptime",
         "uptime",
         unit=UnitOfTime.SECONDS,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:timer-outline",
     ),
     _MirrorConfig(
         "Wi-Fi Signal",
@@ -45,9 +47,10 @@ _ESPHOME_MIRRORS: list[_MirrorConfig] = [
         unit=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
         device_class=SensorDeviceClass.SIGNAL_STRENGTH,
         state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:wifi",
     ),
-    _MirrorConfig("Wi-Fi BSSID", "wi_fi_bssid"),
-    _MirrorConfig("Wi-Fi SSID", "wi_fi_ssid"),
+    _MirrorConfig("Wi-Fi BSSID", "wi_fi_bssid", icon="mdi:router-wireless"),
+    _MirrorConfig("Wi-Fi SSID", "wi_fi_ssid", icon="mdi:wifi-settings"),
 ]
 
 
@@ -57,50 +60,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     node_name: str = entry.data[CONF_ESPHOME_NODE]
-
-    entities: list[SensorEntity] = [
+    async_add_entities([
         GumaxNodeSensor(entry),
         GumaxDeviceIdSensor(entry),
-    ]
-
-    ent_reg = async_get_entity_registry(hass)
-    connectivity_entry = ent_reg.async_get(f"binary_sensor.{node_name}_connectivity")
-    if connectivity_entry and connectivity_entry.device_id:
-        esphome_ids = {
-            e.entity_id
-            for e in async_entries_for_device(ent_reg, connectivity_entry.device_id)
-            if e.platform == "esphome"
-        }
-        for config in _ESPHOME_MIRRORS:
-            source_id = next(
-                (eid for eid in esphome_ids if eid.endswith(f"_{config.id_suffix}")),
-                None,
-            )
-            if source_id:
-                entities.append(GumaxMirrorSensor(entry, config, source_id))
-            else:
-                _LOGGER.debug(
-                    "ESPHome entity with suffix '%s' not found for node '%s'",
-                    config.id_suffix,
-                    node_name,
-                )
-    else:
-        _LOGGER.debug(
-            "ESPHome device not found for node '%s' — diagnostic mirror sensors skipped",
-            node_name,
-        )
-
-    async_add_entities(entities)
-
-
-def _device_info(entry: ConfigEntry) -> DeviceInfo:
-    device_id_hex: str = entry.data[CONF_DEVICE_ID]
-    return DeviceInfo(
-        identifiers={(DOMAIN, device_id_hex)},
-        name=f"Gumax RF ({device_id_hex})",
-        manufacturer="Gumax",
-        model=f"{device_id_hex} (433.92 MHz)",
-    )
+        *[
+            GumaxMirrorSensor(entry, config, f"sensor.{node_name}_{config.id_suffix}")
+            for config in _ESPHOME_MIRRORS
+        ],
+    ])
 
 
 class GumaxNodeSensor(SensorEntity):
@@ -116,8 +83,8 @@ class GumaxNodeSensor(SensorEntity):
         self._attr_native_value = entry.data[CONF_ESPHOME_NODE]
 
     @property
-    def device_info(self) -> DeviceInfo:
-        return _device_info(self._entry)
+    def device_info(self):
+        return device_info_for_entry(self._entry)
 
 
 class GumaxDeviceIdSensor(SensorEntity):
@@ -133,8 +100,8 @@ class GumaxDeviceIdSensor(SensorEntity):
         self._attr_native_value = device_id_hex
 
     @property
-    def device_info(self) -> DeviceInfo:
-        return _device_info(self._entry)
+    def device_info(self):
+        return device_info_for_entry(self._entry)
 
 
 class GumaxMirrorSensor(SensorEntity):
@@ -146,28 +113,74 @@ class GumaxMirrorSensor(SensorEntity):
     ) -> None:
         self._entry = entry
         self._source_id = source_id
+        self._numeric = config.state_class is not None
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
         self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{config.id_suffix}"
         self._attr_name = config.name
         self._attr_native_unit_of_measurement = config.unit
         self._attr_device_class = config.device_class
         self._attr_state_class = config.state_class
+        self._attr_icon = config.icon
 
     @property
-    def device_info(self) -> DeviceInfo:
-        return _device_info(self._entry)
+    def device_info(self):
+        return device_info_for_entry(self._entry)
 
     async def async_added_to_hass(self) -> None:
-        state = self.hass.states.get(self._source_id)
-        if state is not None:
-            self._attr_native_value = state.state
+        node_name: str = self._entry.data[CONF_ESPHOME_NODE]
+        connectivity_id = f"binary_sensor.{node_name}_connectivity"
+
+        @callback
+        def _apply_source(state_str: str | None) -> None:
+            if state_str is None or state_str in ("unavailable", "unknown"):
+                self._attr_available = False
+                self._attr_native_value = None
+            else:
+                self._attr_available = True
+                if self._numeric:
+                    try:
+                        self._attr_native_value = float(state_str)
+                    except ValueError:
+                        self._attr_native_value = None
+                else:
+                    self._attr_native_value = state_str
+
+        @callback
+        def _apply_all() -> None:
+            conn_state = self.hass.states.get(connectivity_id)
+            if conn_state is not None:
+                self._attr_available = conn_state.state == "on"
+            if self._attr_available is not False:
+                src_state = self.hass.states.get(self._source_id)
+                _apply_source(src_state.state if src_state else None)
+            self.async_write_ha_state()
+
+        _apply_all()
+
+        if self._attr_native_value is None and not self.hass.is_running:
+            self.async_on_remove(
+                self.hass.bus.async_listen_once(
+                    EVENT_HOMEASSISTANT_STARTED, lambda _: _apply_all()
+                )
+            )
+
+        @callback
+        def _connectivity_changed(event) -> None:
+            new_state = event.data.get("new_state")
+            self._attr_available = new_state is not None and new_state.state == "on"
+            if not self._attr_available:
+                self._attr_native_value = None
+            self.async_write_ha_state()
 
         @callback
         def _source_changed(event) -> None:
             new_state = event.data.get("new_state")
-            self._attr_native_value = new_state.state if new_state else None
+            _apply_source(new_state.state if new_state else None)
             self.async_write_ha_state()
 
+        self.async_on_remove(
+            async_track_state_change_event(self.hass, [connectivity_id], _connectivity_changed)
+        )
         self.async_on_remove(
             async_track_state_change_event(self.hass, [self._source_id], _source_changed)
         )

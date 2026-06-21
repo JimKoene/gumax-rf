@@ -5,13 +5,13 @@ import logging
 from homeassistant.components import logbook
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import CONF_DEVICE_ID, CONF_ESPHOME_NODE, DOMAIN
+from .helpers import device_info_for_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,21 +37,34 @@ class GumaxBridgeSensor(BinarySensorEntity):
         self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_bridge_status"
 
     @property
-    def device_info(self) -> DeviceInfo:
-        device_id_hex: str = self._entry.data[CONF_DEVICE_ID]
-        return DeviceInfo(
-            identifiers={(DOMAIN, device_id_hex)},
-            name=f"Gumax RF ({device_id_hex})",
-            manufacturer="Gumax",
-            model=f"{device_id_hex} (433.92 MHz)",
-        )
+    def device_info(self):
+        return device_info_for_entry(self._entry)
 
     async def async_added_to_hass(self) -> None:
         connectivity_id = f"binary_sensor.{self._node_name}_connectivity"
 
-        state = self.hass.states.get(connectivity_id)
-        if state is not None:
-            self._attr_is_on = state.state == "on"
+        @callback
+        def _apply_state() -> None:
+            state = self.hass.states.get(connectivity_id)
+            if state is not None:
+                self._attr_is_on = state.state == "on"
+                self.async_write_ha_state()
+
+        _apply_state()
+
+        if self._attr_is_on is None:
+            @callback
+            def _on_ha_started(_event=None) -> None:
+                _apply_state()
+
+            if self.hass.is_running:
+                _on_ha_started()
+            else:
+                self.async_on_remove(
+                    self.hass.bus.async_listen_once(
+                        EVENT_HOMEASSISTANT_STARTED, _on_ha_started
+                    )
+                )
 
         @callback
         def _connectivity_changed(event) -> None:

@@ -98,11 +98,11 @@
       },
       "capture_signal": {
         "title": "Signaal opvangen en analyseren",
-        "description": "Klik op Volgende en druk daarna direct op een knop op je Gumax afstandsbediening. Je hebt 10 seconden."
+        "description": "Klik op Volgende en druk daarna **meerdere keren** op een knop op je Gumax afstandsbediening. Je hebt 10 seconden. Alleen een herkenbaar Gumax-signaal wordt geaccepteerd."
       },
       "capture_signal_wait": {
         "title": "Wachten op signaal…",
-        "description": "Nog **{remaining}** seconden\n\nDruk op een knop op je Gumax afstandsbediening."
+        "description": "Nog **{remaining}** seconden\n\nDruk **meerdere keren** op een knop op je Gumax afstandsbediening."
       },
       "capture_signal_result": {
         "title": "Ontvangen signaal",

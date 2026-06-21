@@ -538,8 +538,11 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             pulses = [int(x) for x in pulses_str.split(",") if x.strip()]
         except ValueError:
             return
+        signal = decode_signal(pulses)
+        if signal is None:
+            return
         self._last_raw = pulses_str
-        self._last_signal = decode_signal(pulses)
+        self._last_signal = signal
         self._cleanup_capture_listener()
 
     def _cleanup_capture_listener(self) -> None:

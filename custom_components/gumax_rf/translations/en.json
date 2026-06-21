@@ -98,11 +98,11 @@
       },
       "capture_signal": {
         "title": "Capture and analyse signal",
-        "description": "Click Next, then immediately press a button on your Gumax remote. You have 10 seconds."
+        "description": "Click Next, then press a button on your Gumax remote **multiple times**. You have 10 seconds. Only a recognisable Gumax signal will be accepted."
       },
       "capture_signal_wait": {
         "title": "Waiting for signal…",
-        "description": "**{remaining}** seconds remaining\n\nPress a button on your Gumax remote."
+        "description": "**{remaining}** seconds remaining\n\nPress a button on your Gumax remote **multiple times**."
       },
       "capture_signal_result": {
         "title": "Received signal",

@@ -13,6 +13,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -86,14 +87,18 @@ async def async_setup_entry(
 ) -> None:
     node_name: str = entry.data[CONF_ESPHOME_NODE]
     last_cmd_sensors = [GumaxLastCmdSensor(entry, c) for c in _LAST_CMD_CONFIGS]
+    ent_reg = er.async_get(hass)
+
+    mirrors = [
+        GumaxMirrorSensor(entry, config, f"sensor.{node_name}_{config.id_suffix}")
+        for config in _ESPHOME_MIRRORS
+        if ent_reg.async_get(f"sensor.{node_name}_{config.id_suffix}") is not None
+    ]
 
     async_add_entities([
         GumaxNodeSensor(entry),
         GumaxDeviceIdSensor(entry),
-        *[
-            GumaxMirrorSensor(entry, config, f"sensor.{node_name}_{config.id_suffix}")
-            for config in _ESPHOME_MIRRORS
-        ],
+        *mirrors,
         *last_cmd_sensors,
     ])
 

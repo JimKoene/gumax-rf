@@ -93,6 +93,7 @@ cc1101:
 
 remote_transmitter:
   id: rf_tx
+  internal: true
   pin:
     number: GPIO26
   carrier_duty_percent: 100%
@@ -125,6 +126,23 @@ remote_receiver:
                 s += std::to_string(x[i]);
               }
               return s;
+
+# Diagnostic sensors — exposes device health info to Home Assistant
+sensor:
+  - platform: uptime
+    name: Uptime
+  - platform: wifi_signal
+    name: "Wi-Fi Signal"
+    update_interval: 60s
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+    ssid:
+      name: "Wi-Fi SSID"
+    bssid:
+      name: "Wi-Fi BSSID"
 
 switch:
   - platform: restart

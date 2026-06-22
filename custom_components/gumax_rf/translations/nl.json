@@ -1,4 +1,16 @@
 {
+  "entity": {
+    "cover": {
+      "gumax_cover": {
+        "state": {
+          "open": "Open (aanname)",
+          "closed": "Gesloten (aanname)",
+          "opening": "Gaat open",
+          "closing": "Gaat dicht"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {

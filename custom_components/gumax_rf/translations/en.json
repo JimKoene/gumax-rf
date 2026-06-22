@@ -1,4 +1,16 @@
 {
+  "entity": {
+    "cover": {
+      "gumax_cover": {
+        "state": {
+          "open": "Open (assumed)",
+          "closed": "Closed (assumed)",
+          "opening": "Opening (assumed)",
+          "closing": "Closing (assumed)"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {

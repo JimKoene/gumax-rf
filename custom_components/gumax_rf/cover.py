@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceNotFound
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from ._protocol import device_id_from_hex, encode, encode_cc
 from .const import (
@@ -58,10 +59,11 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class _GumaxCoverBase(CoverEntity):
+class _GumaxCoverBase(CoverEntity, RestoreEntity):
     _attr_has_entity_name = True
     _attr_assumed_state = True
     _attr_is_closed = None
+    _attr_translation_key = "gumax_cover"
     _attr_supported_features = (
         CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
     )
@@ -69,6 +71,13 @@ class _GumaxCoverBase(CoverEntity):
     @property
     def device_info(self):
         return device_info_for_entry(self._entry)
+
+    async def async_added_to_hass(self) -> None:
+        if (last_state := await self.async_get_last_state()) is not None:
+            if last_state.state == "closed":
+                self._attr_is_closed = True
+            elif last_state.state in ("open", "opening", "closing"):
+                self._attr_is_closed = False
 
     @callback
     def set_available(self, available: bool) -> None:
@@ -126,6 +135,11 @@ class _GumaxCoverBase(CoverEntity):
                     self._node_name,
                 )
                 return
+        if command == "up":
+            self._attr_is_closed = False
+        elif command == "down":
+            self._attr_is_closed = True
+        self.async_write_ha_state()
         if "logbook" in self.hass.config.components:
             logbook.async_log_entry(
                 self.hass,

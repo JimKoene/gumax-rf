@@ -7,6 +7,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass, Bina
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -21,7 +22,10 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    async_add_entities([GumaxBridgeSensor(entry)])
+    node_name: str = entry.data[CONF_ESPHOME_NODE]
+    connectivity_id = f"binary_sensor.{node_name}_connectivity"
+    if er.async_get(hass).async_get(connectivity_id) is not None:
+        async_add_entities([GumaxBridgeSensor(entry)])
 
 
 class GumaxBridgeSensor(BinarySensorEntity):

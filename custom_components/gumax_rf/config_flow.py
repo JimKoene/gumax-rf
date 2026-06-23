@@ -85,7 +85,7 @@ def _node_schema_entry(hass: HomeAssistant, current: str = "") -> dict:
 
 
 class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = 2
 
     @staticmethod
     @callback
@@ -136,10 +136,14 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 user_input[CONF_ESPHOME_NODE] = (
                     user_input[CONF_ESPHOME_NODE].strip().replace("-", "_")
                 )
-                await self.async_set_unique_id(user_input[CONF_DEVICE_ID])
+                await self.async_set_unique_id(
+                    f"{user_input[CONF_DEVICE_ID]}_{user_input[CONF_ESPHOME_NODE]}"
+                )
                 self._abort_if_unique_id_configured()
                 self._pending_data = user_input
-                self._pending_title = f"Gumax RF ({user_input[CONF_DEVICE_ID]})"
+                self._pending_title = (
+                    f"Gumax RF ({user_input[CONF_DEVICE_ID]}) @ {user_input[CONF_ESPHOME_NODE]}"
+                )
                 return await self.async_step_prefix()
 
         schema = vol.Schema(
@@ -235,10 +239,10 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except vol.Invalid as exc:
                 errors[CONF_DEVICE_ID] = str(exc)
             else:
-                await self.async_set_unique_id(device_id)
+                await self.async_set_unique_id(f"{device_id}_{self._selected_node}")
                 self._abort_if_unique_id_configured()
                 self._pending_data = {CONF_ESPHOME_NODE: self._selected_node, CONF_DEVICE_ID: device_id}
-                self._pending_title = f"Gumax RF ({device_id})"
+                self._pending_title = f"Gumax RF ({device_id}) @ {self._selected_node}"
                 return await self.async_step_prefix()
 
         options = [

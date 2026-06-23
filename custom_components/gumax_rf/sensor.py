@@ -131,8 +131,9 @@ class GumaxNodeSensor(SensorEntity):
     def __init__(self, entry: ConfigEntry) -> None:
         self._entry = entry
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
-        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_esphome_node"
-        self._attr_native_value = entry.data[CONF_ESPHOME_NODE]
+        node_name: str = entry.data[CONF_ESPHOME_NODE]
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{node_name}_esphome_node"
+        self._attr_native_value = node_name
 
     @property
     def device_info(self):
@@ -148,7 +149,8 @@ class GumaxDeviceIdSensor(SensorEntity):
     def __init__(self, entry: ConfigEntry) -> None:
         self._entry = entry
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
-        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_device_id"
+        node_name: str = entry.data[CONF_ESPHOME_NODE]
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{node_name}_device_id"
         self._attr_native_value = device_id_hex
 
     @property
@@ -167,7 +169,8 @@ class GumaxMirrorSensor(SensorEntity):
         self._source_id = source_id
         self._numeric = config.state_class is not None
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
-        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{config.id_suffix}"
+        node_name: str = entry.data[CONF_ESPHOME_NODE]
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{node_name}_{config.id_suffix}"
         self._attr_name = config.name
         self._attr_native_unit_of_measurement = config.unit
         self._attr_device_class = config.device_class
@@ -245,7 +248,8 @@ class GumaxLastCmdSensor(RestoreSensor):
         self._entry = entry
         self._field = config.field
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
-        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{config.id_suffix}"
+        node_name: str = entry.data[CONF_ESPHOME_NODE]
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{node_name}_{config.id_suffix}"
         self._attr_name = config.name
         self._attr_device_class = config.device_class
         self._attr_icon = config.icon

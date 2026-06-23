@@ -158,7 +158,7 @@ class GumaxCover(_GumaxCoverBase):
         self._device_id_bin = device_id_from_hex(device_id_hex)
         self._node_name: str = entry.data[CONF_ESPHOME_NODE]
         prefix = entry.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
-        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{channel}"
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{self._node_name}_{channel}"
         self._attr_name = f"{prefix}{channel}"
 
     def _build_pulses(self, command: str) -> list[int]:
@@ -175,7 +175,7 @@ class GumaxCCCover(_GumaxCoverBase):
         self._node_name: str = entry.data[CONF_ESPHOME_NODE]
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
         self._device_id_bin = device_id_from_hex(device_id_hex)
-        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_cc"
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{self._node_name}_cc"
 
     def _build_pulses(self, command: str) -> list[int]:
         return encode_cc(command, self._device_id_bin)

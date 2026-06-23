@@ -38,7 +38,7 @@ class GumaxBridgeSensor(BinarySensorEntity):
         self._entry = entry
         self._node_name: str = entry.data[CONF_ESPHOME_NODE]
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
-        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_bridge_status"
+        self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{self._node_name}_bridge_status"
 
     @property
     def device_info(self):

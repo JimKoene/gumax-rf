@@ -84,7 +84,7 @@
     },
     "abort": {
       "already_configured": "This device ID is already configured.",
-      "reconfigure_successful": "Integration updated with the new ESPHome node."
+      "reconfigure_successful": "Integration updated with the new ESPHome node.",
       "no_esphome_nodes": "No ESPHome node with 433 MHz support found. Make sure your CC1101 bridge is online and try again."
     }
   },

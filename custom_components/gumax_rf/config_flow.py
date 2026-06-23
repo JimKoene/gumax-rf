@@ -13,6 +13,9 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
 )
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+
 from ._protocol import decode_device_id, decode_signal, device_id_from_hex, encode, encode_cc
 from .const import (
     CONF_CHANNEL_PREFIX,
@@ -339,6 +342,58 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._cleanup_listener()
         if self._capture_task and not self._capture_task.done():
             self._capture_task.cancel()
+
+    # ------------------------------------------------------------------
+    # Re-configure — update ESPHome node name without losing entities
+    # ------------------------------------------------------------------
+
+    async def async_step_reconfigure(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        errors: dict[str, str] = {}
+        reconfigure_entry = self._get_reconfigure_entry()
+        current_node: str = reconfigure_entry.data[CONF_ESPHOME_NODE]
+        device_id: str = reconfigure_entry.data[CONF_DEVICE_ID]
+
+        if user_input is not None:
+            new_node = user_input[CONF_ESPHOME_NODE].strip().replace("-", "_")
+            new_unique_id = f"{device_id}_{new_node}"
+
+            for existing in self._async_current_entries():
+                if existing.entry_id != reconfigure_entry.entry_id and existing.unique_id == new_unique_id:
+                    return self.async_abort(reason="already_configured")
+
+            entity_registry = er.async_get(self.hass)
+            old_prefix = f"{DOMAIN}_{device_id}_{current_node}_"
+            new_prefix = f"{DOMAIN}_{device_id}_{new_node}_"
+            for entity_entry in er.async_entries_for_config_entry(entity_registry, reconfigure_entry.entry_id):
+                if entity_entry.unique_id.startswith(old_prefix):
+                    new_uid = new_prefix + entity_entry.unique_id[len(old_prefix):]
+                    entity_registry.async_update_entity(entity_entry.entity_id, new_unique_id=new_uid)
+
+            device_registry = dr.async_get(self.hass)
+            device = device_registry.async_get_device(identifiers={(DOMAIN, f"{device_id}_{current_node}")})
+            if device is not None:
+                device_registry.async_update_device(device.id, new_identifiers={(DOMAIN, new_unique_id)})
+
+            return self.async_update_reload_and_abort(
+                reconfigure_entry,
+                unique_id=new_unique_id,
+                title=f"Gumax RF ({device_id}) @ {new_node}",
+                data_updates={CONF_ESPHOME_NODE: new_node},
+                reason="reconfigure_successful",
+            )
+
+        schema = vol.Schema({**_node_schema_entry(self.hass, current=current_node)})
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={
+                "device_id": device_id,
+                "current_node": current_node,
+            },
+        )
 
 
 class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):

@@ -56,6 +56,16 @@
           "device_id": "Select a captured ID or type one manually."
         }
       },
+      "reconfigure": {
+        "title": "Reconfigure Gumax RF",
+        "description": "Current ESPHome node: **{current_node}**\n\nSelect the new node if you have renamed it.",
+        "data": {
+          "esphome_node": "ESPHome node name"
+        },
+        "data_description": {
+          "esphome_node": "Select the new 433 MHz capable ESPHome node."
+        }
+      },
       "prefix": {
         "title": "Channel name prefix",
         "description": "Set a prefix for channel names (max. 12 characters). CC always stays CC.\n\nChannel 1 will be named: **{example}**",
@@ -74,6 +84,7 @@
     },
     "abort": {
       "already_configured": "This device ID is already configured.",
+      "reconfigure_successful": "Integration updated with the new ESPHome node."
       "no_esphome_nodes": "No ESPHome node with 433 MHz support found. Make sure your CC1101 bridge is online and try again."
     }
   },

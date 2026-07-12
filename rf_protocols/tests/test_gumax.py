@@ -1,14 +1,43 @@
-"""Tests for Gumax RF protocol encoder.
+"""Tests for the Gumax RF protocol encoder.
 
-All expected values from the spec's verified capture table (K1–K11 100% match).
+Checksum/b9 expectations come from two sources:
+  - The comprehensive channel/command table further down was cross-validated
+    against a working ESPHome YAML reference implementation, using REMOTE_1
+    (whose calibration reproduces that original formula exactly).
+  - test_b8_and_b9_against_local_captures() covers additional real remotes,
+    but their data lives in local_captures.py, which is gitignored and not
+    part of this repo — those remotes came from real users who did not agree
+    to have their device's data published. That test is skipped when the
+    file isn't present (e.g. on CI, or for anyone else who clones this repo).
 """
 
 import pytest
-from rf_protocols.protocols.gumax import DEVICE_ID_DEFAULT, PREAMBLE, encode, encode_cc, device_id_from_hex
+from rf_protocols.protocols.gumax import (
+    DEVICE_ID_DEFAULT,
+    PREAMBLE,
+    DeviceProfile,
+    channel_bytes,
+    device_id_from_hex,
+    encode,
+    encode_cc,
+    infer_x_dev,
+)
+
+try:
+    from .local_captures import LOCAL_REMOTES
+except ImportError:
+    LOCAL_REMOTES = []
 
 PREAMBLE_LEN = len(PREAMBLE)  # 15
 BITS = 65
 EXPECTED_PULSES = PREAMBLE_LEN + BITS * 2  # 145
+
+# REMOTE_1's calibration reproduces the original (pre-calibration) formula
+# exactly, which is why it doubles as the profile for the structural /
+# cross-implementation tests below. It's a real remote too, but its owner is
+# also this project's maintainer, who's fine with these specific derived
+# values (not the device_id itself) being public — see PROTOCOLSPEC.md.
+REMOTE_1 = DeviceProfile(x_dev=0xD4, k1_extra=0, k9_extra=0, b9_default=0, b9_k1=1, b9_k9=1)
 
 
 def _bits(pulses: list[int]) -> list[int]:
@@ -25,35 +54,35 @@ def _byte(pulses: list[int], start: int) -> int:
 # ── packet structure ──────────────────────────────────────────────────────────
 
 def test_encode_total_length():
-    assert len(encode(1, "up")) == EXPECTED_PULSES
+    assert len(encode(1, "up", DEVICE_ID_DEFAULT, REMOTE_1)) == EXPECTED_PULSES
 
 
 def test_encode_preamble():
-    pulses = encode(1, "up")
+    pulses = encode(1, "up", DEVICE_ID_DEFAULT, REMOTE_1)
     assert pulses[:PREAMBLE_LEN] == list(PREAMBLE)
 
 
 def test_encode_device_id_default():
-    pulses = encode(1, "up")
+    pulses = encode(1, "up", DEVICE_ID_DEFAULT, REMOTE_1)
     bits = _bits(pulses)
     assert "".join(str(b) for b in bits[:32]) == DEVICE_ID_DEFAULT
 
 
 def test_encode_rejects_bad_channel():
     with pytest.raises(ValueError):
-        encode(0, "up")
+        encode(0, "up", DEVICE_ID_DEFAULT, REMOTE_1)
     with pytest.raises(ValueError):
-        encode(17, "up")
+        encode(17, "up", DEVICE_ID_DEFAULT, REMOTE_1)
 
 
 def test_encode_rejects_bad_command():
     with pytest.raises(ValueError):
-        encode(1, "left")
+        encode(1, "left", DEVICE_ID_DEFAULT, REMOTE_1)
 
 
 def test_encode_rejects_bad_device_id():
     with pytest.raises(ValueError):
-        encode(1, "up", "not-binary")
+        encode(1, "up", "not-binary", REMOTE_1)
 
 
 # ── b7 (command byte) ─────────────────────────────────────────────────────────
@@ -64,18 +93,28 @@ def test_encode_rejects_bad_device_id():
     ("stop", 0x11),
 ])
 def test_b7_normal_channel(command, expected_b7):
-    pulses = encode(1, command)
+    pulses = encode(1, command, DEVICE_ID_DEFAULT, REMOTE_1)
     assert _byte(pulses, 48) == expected_b7
 
 
 def test_b7_k9_sets_bit7():
     """K9 (cv=0x0000) must have bit 7 of b7 set to identify it as a valid channel."""
-    assert _byte(encode(9, "up"),   48) == 0x05 | 0x80
-    assert _byte(encode(9, "down"), 48) == 0x21 | 0x80
-    assert _byte(encode(9, "stop"), 48) == 0x11 | 0x80
+    assert _byte(encode(9, "up", DEVICE_ID_DEFAULT, REMOTE_1),   48) == 0x05 | 0x80
+    assert _byte(encode(9, "down", DEVICE_ID_DEFAULT, REMOTE_1), 48) == 0x21 | 0x80
+    assert _byte(encode(9, "stop", DEVICE_ID_DEFAULT, REMOTE_1), 48) == 0x11 | 0x80
 
 
-# ── b9 (parity bit) ──────────────────────────────────────────────────────────
+# ── channel_bytes ──────────────────────────────────────────────────────────────
+
+def test_channel_bytes_normal_channel():
+    assert channel_bytes(1, "up") == (0x00, 0x80, 0x05)
+
+
+def test_channel_bytes_k9_sets_flag():
+    assert channel_bytes(9, "stop") == (0x00, 0x00, 0x11 | 0x80)
+
+
+# ── b9 (parity bit) — REMOTE_1's stored pattern ────────────────────────────────
 
 @pytest.mark.parametrize("channel,expected_b9", [
     (1,  1),
@@ -86,12 +125,12 @@ def test_b7_k9_sets_bit7():
     (10, 0),
     (16, 0),
 ])
-def test_b9_parity(channel, expected_b9):
-    bits = _bits(encode(channel, "up"))
+def test_b9_uses_profile(channel, expected_b9):
+    bits = _bits(encode(channel, "up", DEVICE_ID_DEFAULT, REMOTE_1))
     assert bits[64] == expected_b9
 
 
-# ── b8 (checksum) — verified against spec capture table ──────────────────────
+# ── b8 (checksum) — cross-validated against ESPHome YAML reference ───────────
 
 @pytest.mark.parametrize("channel,command,expected_b8", [
     (1,  "up",   217),
@@ -128,7 +167,79 @@ def test_b9_parity(channel, expected_b9):
     (16, "stop", 165),
 ])
 def test_b8_checksum(channel, command, expected_b8):
-    assert _byte(encode(channel, command), 56) == expected_b8
+    assert _byte(encode(channel, command, DEVICE_ID_DEFAULT, REMOTE_1), 56) == expected_b8
+
+
+# ── b8 + b9 — REMOTE_1 (public reference remote) ──────────────────────────────
+# Real captures, cross-checked during protocol reverse-engineering. K1 and K9
+# differ from the "normal channel" formula per remote (see DeviceProfile
+# docstring), which is exactly what these cover.
+
+@pytest.mark.parametrize("channel,command,expected_b8,expected_b9", [
+    (1,  "up",   0xD9, 1),
+    (1,  "stop", 0xE5, 1),
+    (1,  "down", 0xF5, 1),
+    (7,  "up",   0xF9, 0),
+    (7,  "stop", 0x85, 0),
+    (7,  "down", 0x95, 0),
+    (12, "up",   0xDD, 0),
+    (12, "stop", 0xE9, 0),
+    (12, "down", 0xF9, 0),
+])
+def test_b8_and_b9_against_reference_remote(channel, command, expected_b8, expected_b9):
+    pulses = encode(channel, command, DEVICE_ID_DEFAULT, REMOTE_1)
+    assert _byte(pulses, 56) == expected_b8
+    assert _bits(pulses)[64] == expected_b9
+
+
+def test_b8_and_b9_against_local_captures():
+    """Additional real remotes' data, kept out of the public repo — see
+    local_captures.py's docstring. Skipped without that (gitignored) file."""
+    if not LOCAL_REMOTES:
+        pytest.skip("rf_protocols/tests/local_captures.py not present locally")
+    for remote in LOCAL_REMOTES:
+        profile = remote["profile"]
+        for channel, command, expected_b8, expected_b9 in remote.get("rows", []):
+            pulses = encode(channel, command, DEVICE_ID_DEFAULT, profile)
+            assert _byte(pulses, 56) == expected_b8, f"{remote['label']} ch{channel} {command} b8"
+            assert _bits(pulses)[64] == expected_b9, f"{remote['label']} ch{channel} {command} b9"
+        for command, expected_b8, expected_b9 in remote.get("cc_rows", []):
+            pulses = encode_cc(command, DEVICE_ID_DEFAULT, profile)
+            assert _byte(pulses, 56) == expected_b8, f"{remote['label']} CC {command} b8"
+            assert _bits(pulses)[64] == expected_b9, f"{remote['label']} CC {command} b9"
+
+
+# ── infer_x_dev — inverts the formula used to calibrate a new remote ─────────
+# Synthetic values on purpose (not tied to any real remote) — infer_x_dev is
+# pure math, it doesn't need real capture data to be exercised correctly.
+
+def test_infer_x_dev_round_trip_normal_channel():
+    b5, b6, b7 = channel_bytes(7, "down")
+    synthetic_x_dev = 0x2A
+    checksum = _byte(encode(7, "down", DEVICE_ID_DEFAULT, DeviceProfile(x_dev=synthetic_x_dev)), 56)
+    assert infer_x_dev(b5 + b6 + b7, checksum) == synthetic_x_dev
+
+
+def test_infer_x_dev_round_trip_k1_includes_extra():
+    b5, b6, b7 = channel_bytes(1, "down")
+    synthetic_x_dev, synthetic_extra = 0x2A, 3
+    profile = DeviceProfile(x_dev=synthetic_x_dev, k1_extra=synthetic_extra)
+    checksum = _byte(encode(1, "down", DEVICE_ID_DEFAULT, profile), 56)
+    assert (
+        infer_x_dev(b5 + b6 + b7, checksum, hint=synthetic_x_dev)
+        == synthetic_x_dev + synthetic_extra
+    )
+
+
+def test_infer_x_dev_ambiguous_without_hint_needs_a_hint_for_k1():
+    """K1's channel bit can make both wrap branches valid; without a hint the
+    no-overflow solution is preferred, which isn't always the real one — this
+    is why config_flow always passes hint=x_dev when solving for K1/K9."""
+    b5, b6, b7 = channel_bytes(1, "down")
+    synthetic_combined = 200  # large enough to overflow when summed with K1's bytes
+    checksum = _byte(encode(1, "down", DEVICE_ID_DEFAULT, DeviceProfile(x_dev=synthetic_combined)), 56)
+    assert infer_x_dev(b5 + b6 + b7, checksum) != synthetic_combined
+    assert infer_x_dev(b5 + b6 + b7, checksum, hint=synthetic_combined) == synthetic_combined
 
 
 # ── device_id_from_hex ────────────────────────────────────────────────────────
@@ -182,28 +293,36 @@ _K9_UP_DATA = [
 
 
 def test_k1_up_matches_yaml_capture():
-    assert encode(1, "up")[PREAMBLE_LEN:] == _K1_UP_DATA
+    assert encode(1, "up", DEVICE_ID_DEFAULT, REMOTE_1)[PREAMBLE_LEN:] == _K1_UP_DATA
 
 
 def test_k9_up_matches_yaml_capture():
-    assert encode(9, "up")[PREAMBLE_LEN:] == _K9_UP_DATA
+    assert encode(9, "up", DEVICE_ID_DEFAULT, REMOTE_1)[PREAMBLE_LEN:] == _K9_UP_DATA
 
 
-# ── CC captured pulses ────────────────────────────────────────────────────────
-# CC uses cv=0x7FFF; b8_base=216 (not 87 from the formula), offsets still apply:
-#   up=216, down=244, stop=228.
+# ── CC broadcast — computed via the same formula, verified per remote ────────
+# (additional remotes' CC rows are covered by test_b8_and_b9_against_local_captures)
 
-def test_encode_cc_all_commands_available():
-    for cmd in ("up", "down", "stop"):
-        pulses = encode_cc(cmd)
-        assert isinstance(pulses, list)
-        assert len(pulses) == 145  # 15 preamble + 65*2 data
+@pytest.mark.parametrize("command,expected_b8,expected_b9", [
+    ("up",   0xD8, 0),
+    ("stop", 0xE4, 0),
+    ("down", 0xF4, 0),
+])
+def test_cc_against_reference_remote(command, expected_b8, expected_b9):
+    pulses = encode_cc(command, DEVICE_ID_DEFAULT, REMOTE_1)
+    assert _byte(pulses, 56) == expected_b8
+    assert _bits(pulses)[64] == expected_b9
+
+
+def test_encode_cc_length():
+    assert len(encode_cc("up", DEVICE_ID_DEFAULT, REMOTE_1)) == EXPECTED_PULSES
 
 
 def test_encode_cc_rejects_bad_command():
     with pytest.raises(ValueError):
-        encode_cc("left")
+        encode_cc("left", DEVICE_ID_DEFAULT, REMOTE_1)
 
 
-def test_encode_cc_returns_copy():
-    assert encode_cc("up") is not encode_cc("up")
+def test_encode_cc_rejects_bad_device_id():
+    with pytest.raises(ValueError):
+        encode_cc("up", "not-binary", REMOTE_1)

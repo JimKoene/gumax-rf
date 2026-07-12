@@ -7,6 +7,11 @@ __pycache__/
 .venv/
 *.egg-info/
 
+# Real capture data from other people's remotes — never publish (see
+# rf_protocols/tests/local_captures.py's docstring)
+rf_protocols/tests/local_captures.py
+rf_protocols/tests/raw_captures.py
+
 # Home Assistant
 homeassistant/.storage/
 homeassistant/secrets.yaml

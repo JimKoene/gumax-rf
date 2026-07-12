@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.config_entries import SOURCE_RECONFIGURE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.selector import (
     SelectSelector,
@@ -16,17 +17,19 @@ from homeassistant.helpers.selector import (
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from ._calibration_flow import CalibrationFlowMixin
 from ._protocol import decode_device_id, decode_signal, device_id_from_hex, encode, encode_cc
 from .const import (
     CONF_CHANNEL_PREFIX,
     CONF_DEVICE_ID,
     CONF_ESPHOME_NODE,
+    CONF_X_DEV,
     DEFAULT_CHANNEL_PREFIX,
-    DEFAULT_DEVICE_ID,
     DOMAIN,
     MAX_PREFIX_LENGTH,
     RF_CAPTURE_EVENT,
 )
+from .helpers import device_profile_for_entry
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -87,7 +90,7 @@ def _node_schema_entry(hass: HomeAssistant, current: str = "") -> dict:
     return {key: field}
 
 
-class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class GumaxRfConfigFlow(CalibrationFlowMixin, config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 2
 
     @staticmethod
@@ -107,55 +110,22 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._pending_data: dict = {}
         self._pending_title: str = ""
 
+        # Calibration (capture_k1/capture_k2/capture_k9) state — see
+        # CalibrationFlowMixin in _calibration_flow.py.
+        self._device_id: str = ""
+        self._reconfigure_new_unique_id: str = ""
+        self._init_calibration_state()
+
     # ------------------------------------------------------------------
-    # Entry point — choose setup method
+    # Entry point — go straight into the learn flow (no manual entry: the
+    # checksum can't be computed correctly without a live capture, see
+    # capture_k1/k2/k9 below).
     # ------------------------------------------------------------------
 
     async def async_step_user(
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
-        return self.async_show_menu(
-            step_id="user",
-            menu_options=["manual", "learn"],
-        )
-
-    # ------------------------------------------------------------------
-    # Manual entry
-    # ------------------------------------------------------------------
-
-    async def async_step_manual(
-        self, user_input: dict | None = None
-    ) -> config_entries.ConfigFlowResult:
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            try:
-                user_input[CONF_DEVICE_ID] = _validate_device_id(
-                    user_input[CONF_DEVICE_ID]
-                )
-            except vol.Invalid as exc:
-                errors[CONF_DEVICE_ID] = str(exc)
-            else:
-                user_input[CONF_ESPHOME_NODE] = (
-                    user_input[CONF_ESPHOME_NODE].strip().replace("-", "_")
-                )
-                await self.async_set_unique_id(
-                    f"{user_input[CONF_DEVICE_ID]}_{user_input[CONF_ESPHOME_NODE]}"
-                )
-                self._abort_if_unique_id_configured()
-                self._pending_data = user_input
-                self._pending_title = (
-                    f"Gumax RF ({user_input[CONF_DEVICE_ID]}) @ {user_input[CONF_ESPHOME_NODE]}"
-                )
-                return await self.async_step_prefix()
-
-        schema = vol.Schema(
-            {
-                **_node_schema_entry(self.hass),
-                vol.Required(CONF_DEVICE_ID, default=DEFAULT_DEVICE_ID): str,
-            }
-        )
-        return self.async_show_form(step_id="manual", data_schema=schema, errors=errors)
+        return await self.async_step_learn(user_input)
 
     # ------------------------------------------------------------------
     # Learn — step 1: select node
@@ -246,7 +216,9 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 self._pending_data = {CONF_ESPHOME_NODE: self._selected_node, CONF_DEVICE_ID: device_id}
                 self._pending_title = f"Gumax RF ({device_id}) @ {self._selected_node}"
-                return await self.async_step_prefix()
+                self._device_id = device_id
+                self._init_calibration_state()
+                return await self.async_step_capture_k1()
 
         options = [
             {"value": did, "label": f"{did} ({count}×)"}
@@ -270,6 +242,25 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={"log": self._format_capture_log()},
         )
+
+    # ------------------------------------------------------------------
+    # Calibration — capture K1, K2, K9 to derive x_dev, K1/K9 corrections
+    # and the per-channel b9 bit. Steps live in CalibrationFlowMixin; this
+    # decides what to do once calibration_share hands the result back.
+    # ------------------------------------------------------------------
+
+    async def _finish_calibration(self, calibration: dict) -> config_entries.ConfigFlowResult:
+        if self.source == SOURCE_RECONFIGURE:
+            reconfigure_entry = self._get_reconfigure_entry()
+            return self.async_update_reload_and_abort(
+                reconfigure_entry,
+                unique_id=self._reconfigure_new_unique_id,
+                title=f"Gumax RF ({self._device_id}) @ {self._pending_data[CONF_ESPHOME_NODE]}",
+                data_updates={**self._pending_data, **calibration},
+                reason="reconfigure_successful",
+            )
+        self._pending_data.update(calibration)
+        return await self.async_step_prefix()
 
     # ------------------------------------------------------------------
     # Prefix step (shared by manual and learn flows)
@@ -340,11 +331,16 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def async_remove(self) -> None:
         self._cleanup_listener()
+        self._cleanup_calib_listener()
         if self._capture_task and not self._capture_task.done():
             self._capture_task.cancel()
+        if self._calib_task and not self._calib_task.done():
+            self._calib_task.cancel()
 
     # ------------------------------------------------------------------
-    # Re-configure — update ESPHome node name without losing entities
+    # Re-configure — update ESPHome node name without losing entities;
+    # also backfills calibration (x_dev etc.) for entries created before
+    # per-remote calibration existed.
     # ------------------------------------------------------------------
 
     async def async_step_reconfigure(
@@ -375,6 +371,13 @@ class GumaxRfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             device = device_registry.async_get_device(identifiers={(DOMAIN, f"{device_id}_{current_node}")})
             if device is not None:
                 device_registry.async_update_device(device.id, new_identifiers={(DOMAIN, new_unique_id)})
+
+            if CONF_X_DEV not in reconfigure_entry.data:
+                self._device_id = device_id
+                self._pending_data = {CONF_ESPHOME_NODE: new_node}
+                self._reconfigure_new_unique_id = new_unique_id
+                self._init_calibration_state()
+                return await self.async_step_capture_k1()
 
             return self.async_update_reload_and_abort(
                 reconfigure_entry,
@@ -566,7 +569,7 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
         checksum_valid = sig.get("checksum_valid")
         if checksum is not None:
             checksum_label = f"0x{checksum:02X}"
-            checksum_valid_label = "✓" if checksum_valid else "✗"
+            checksum_valid_label = "✓" if checksum_valid else ("✗" if checksum_valid is not None else "?")
         else:
             checksum_label = "?"
             checksum_valid_label = "?"
@@ -600,7 +603,7 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
             pulses = [int(x) for x in pulses_str.split(",") if x.strip()]
         except ValueError:
             return
-        signal = decode_signal(pulses)
+        signal = decode_signal(pulses, device_profile_for_entry(self.config_entry))
         if signal is None:
             return
         self._last_raw = pulses_str
@@ -629,18 +632,19 @@ class GumaxRfOptionsFlow(config_entries.OptionsFlowWithConfigEntry):
 
         device_id_hex: str = self.config_entry.data[CONF_DEVICE_ID]
         device_id_bin = device_id_from_hex(device_id_hex)
+        profile = device_profile_for_entry(self.config_entry)
         prefix = self.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
 
         if self._selected_channel == "CC":
-            pulses_up = encode_cc("up", device_id_bin)
-            pulses_down = encode_cc("down", device_id_bin)
-            pulses_stop = encode_cc("stop", device_id_bin)
+            pulses_up = encode_cc("up", device_id_bin, profile)
+            pulses_down = encode_cc("down", device_id_bin, profile)
+            pulses_stop = encode_cc("stop", device_id_bin, profile)
             channel_label = "CC"
         else:
             channel_num = int(self._selected_channel)
-            pulses_up = encode(channel_num, "up", device_id_bin)
-            pulses_down = encode(channel_num, "down", device_id_bin)
-            pulses_stop = encode(channel_num, "stop", device_id_bin)
+            pulses_up = encode(channel_num, "up", device_id_bin, profile)
+            pulses_down = encode(channel_num, "down", device_id_bin, profile)
+            pulses_stop = encode(channel_num, "stop", device_id_bin, profile)
             channel_label = f"{prefix}{channel_num}"
 
         return self.async_show_form(

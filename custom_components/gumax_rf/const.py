@@ -4,7 +4,15 @@ CONF_ESPHOME_NODE = "esphome_node"
 CONF_DEVICE_ID = "device_id"
 CONF_CHANNEL_PREFIX = "channel_prefix"
 
-DEFAULT_DEVICE_ID = "A1B2C3D4"
+# Per-remote calibration (see DeviceProfile in _protocol.py). Learned via the
+# capture_k1/capture_k2/capture_k9 config-flow steps; not user-editable.
+CONF_X_DEV = "x_dev"
+CONF_K1_EXTRA = "k1_extra"
+CONF_K9_EXTRA = "k9_extra"
+CONF_B9_DEFAULT = "b9_default"
+CONF_B9_K1 = "b9_k1"
+CONF_B9_K9 = "b9_k9"
+
 DEFAULT_CHANNEL_PREFIX = "C"
 MAX_PREFIX_LENGTH = 12
 

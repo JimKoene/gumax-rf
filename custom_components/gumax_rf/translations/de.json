@@ -1,0 +1,195 @@
+{
+  "entity": {
+    "cover": {
+      "gumax_cover": {
+        "state": {
+          "open": "Offen (angenommen)",
+          "closed": "Geschlossen (angenommen)",
+          "opening": "Öffnet (angenommen)",
+          "closing": "Schließt (angenommen)"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "learn": {
+        "title": "Gumax RF — von Fernbedienung lernen",
+        "description": "Wähle den ESPHome-Node und klicke auf Weiter. Du hast danach 10 Sekunden, um eine Taste auf der Fernbedienung zu drücken.",
+        "data": {
+          "esphome_node": "ESPHome-Node-Name"
+        },
+        "data_description": {
+          "esphome_node": "Wähle einen erkannten 433-MHz-fähigen ESPHome-Node oder gib einen eigenen Namen ein. Bindestriche werden automatisch zu Unterstrichen."
+        }
+      },
+      "learn_wait": {
+        "title": "Warten auf Signal…",
+        "description": "Noch **{remaining}** Sekunden\n\nDrücke eine Taste auf deiner Gumax-Fernbedienung.\n\nErfasste Geräte-IDs:\n{log}"
+      },
+      "learn_result": {
+        "title": "Erfasste Geräte-IDs",
+        "description": "{log}",
+        "data": {
+          "device_id": "Geräte-ID"
+        },
+        "data_description": {
+          "device_id": "Wähle eine erfasste ID oder gib manuell eine ein."
+        }
+      },
+      "capture_k1": {
+        "title": "Kalibrierung: Kanal K1",
+        "description": "Klicke auf Weiter und drücke danach eine beliebige Taste von **Kanal 1 (K1)** auf deiner Fernbedienung. Du hast 10 Sekunden.\n\n{progress}"
+      },
+      "capture_k1_wait": {
+        "title": "Warten auf K1-Signal…",
+        "description": "Noch **{remaining}** Sekunden\n\nDrücke eine Taste von Kanal 1 (K1)."
+      },
+      "capture_k2": {
+        "title": "Kalibrierung: Kanal K2",
+        "description": "Klicke auf Weiter und drücke danach eine beliebige Taste von **Kanal 2 (K2)** auf deiner Fernbedienung. Du hast 10 Sekunden.\n\n{progress}"
+      },
+      "capture_k2_wait": {
+        "title": "Warten auf K2-Signal…",
+        "description": "Noch **{remaining}** Sekunden\n\nDrücke eine Taste von Kanal 2 (K2)."
+      },
+      "capture_k9": {
+        "title": "Kalibrierung: Kanal K9",
+        "description": "Klicke auf Weiter und drücke danach eine beliebige Taste von **Kanal 9 (K9)** auf deiner Fernbedienung. Du hast 10 Sekunden.\n\n{progress}"
+      },
+      "capture_k9_wait": {
+        "title": "Warten auf K9-Signal…",
+        "description": "Noch **{remaining}** Sekunden\n\nDrücke eine Taste von Kanal 9 (K9)."
+      },
+      "calibration_share": {
+        "title": "Kalibrierung erfolgreich",
+        "description": "**Validierung:**\n{verify_block}\n\nDie Kalibrierung ist erfolgreich und wird sofort verwendet.\n\nMöchtest du uns helfen, die Checksummen-Berechnung für andere Fernbedienungen zu verbessern? Kopiere den Block unten und poste ihn in [dieser GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). Das ist völlig optional — es wird nichts automatisch gesendet, und dieser Block enthält einen Code, der dein eigenes Gerät steuern kann, teile ihn also nur, wenn du damit einverstanden bist.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um fortzufahren."
+      },
+      "calibration_mismatch": {
+        "title": "Kalibrierung: unerwartetes Ergebnis",
+        "description": "**Validierung:**\n{verify_block}\n\nDie berechnete Kalibrierung stimmt nicht mit dem überein, was deine Fernbedienung tatsächlich gesendet hat. Das deutet auf einen Fehler in dieser Integration hin, nicht auf ein Problem mit deiner Fernbedienung oder deiner Eingabe.\n\nBitte melde dies mit dem Block unten über [ein neues GitHub-Issue](https://github.com/JimKoene/gumax-rf/issues/new). Die berechnete Kalibrierung wird währenddessen trotzdem angewendet, damit dein Gerät weiter funktioniert.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um fortzufahren."
+      },
+      "reconfigure": {
+        "title": "Gumax RF neu konfigurieren",
+        "description": "Aktueller ESPHome-Node: **{current_node}**\n\nWähle den neuen Node, falls du ihn umbenannt hast.",
+        "data": {
+          "esphome_node": "ESPHome-Node-Name"
+        },
+        "data_description": {
+          "esphome_node": "Wähle den neuen 433-MHz-fähigen ESPHome-Node."
+        }
+      },
+      "prefix": {
+        "title": "Kanalnamen-Präfix",
+        "description": "Lege ein Präfix für Kanalnamen fest (max. 12 Zeichen). CC bleibt immer CC.\n\nKanal 1 erhält den Namen: **{example}**",
+        "data": {
+          "channel_prefix": "Präfix"
+        },
+        "data_description": {
+          "channel_prefix": "Z. B. 'C' → C1, C2 … oder 'Screen' → Screen1, Screen2 …"
+        }
+      }
+    },
+    "error": {
+      "invalid_device_id": "Ungültiger Hex-Wert (max. 8 Zeichen, z. B. A1B2C3D4)",
+      "no_signal_received": "Innerhalb von 10 Sekunden kein Signal empfangen. Bitte versuche es erneut."
+    },
+    "abort": {
+      "already_configured": "Diese Geräte-ID ist bereits konfiguriert.",
+      "reconfigure_successful": "Integration aktualisiert.",
+      "no_esphome_nodes": "Kein ESPHome-Node mit 433-MHz-Unterstützung gefunden. Stelle sicher, dass deine CC1101-Bridge online ist, und versuche es erneut."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gumax RF-Einstellungen",
+        "menu_options": {
+          "configure_prefix": "Kanalnamen-Präfix festlegen",
+          "view_codes": "Berechnete Rohimpulscodes anzeigen",
+          "capture_signal": "Signal erfassen und analysieren"
+        }
+      },
+      "configure_prefix": {
+        "title": "Kanalnamen-Präfix",
+        "description": "Lege ein eigenes Präfix für Kanalnamen fest (max. 12 Zeichen). CC bleibt immer CC.\n\nKanal 1 erhält den Namen: **{example}**",
+        "data": {
+          "channel_prefix": "Präfix"
+        },
+        "data_description": {
+          "channel_prefix": "Z. B. 'C' → C1, C2 … oder 'Screen' → Screen1, Screen2 …"
+        }
+      },
+      "view_codes": {
+        "title": "Rohimpulscodes anzeigen",
+        "description": "Wähle einen Kanal, um die Rohimpulszeiten für alle Befehle anzuzeigen.",
+        "data": {
+          "channel": "Kanal"
+        }
+      },
+      "show_code": {
+        "title": "Rohimpulscodes",
+        "description": "**{channel}**\n\n**auf:**\n{code_up}\n\n**ab:**\n{code_down}\n\n**stopp:**\n{code_stop}"
+      },
+      "capture_signal": {
+        "title": "Signal erfassen und analysieren",
+        "description": "Klicke auf Weiter und drücke danach **mehrmals** eine Taste auf deiner Gumax-Fernbedienung. Du hast 10 Sekunden. Nur ein erkennbares Gumax-Signal wird akzeptiert."
+      },
+      "capture_signal_wait": {
+        "title": "Warten auf Signal…",
+        "description": "Noch **{remaining}** Sekunden\n\nDrücke **mehrmals** eine Taste auf deiner Gumax-Fernbedienung."
+      },
+      "capture_signal_result": {
+        "title": "Empfangenes Signal",
+        "description": "**Fernbedienungs-ID:** {device_id}\n**Kanal:** {channel}\n**Befehl:** {command}\n**Prüfsumme:** {checksum} {checksum_valid}\n**Encoder-Abgleich:** {encode_match}\n\n**RAW-Signal:**\n{raw}\n\nKlicke auf Weiter, um erneut zu erfassen."
+      }
+    },
+    "error": {
+      "invalid_prefix": "Präfix darf nicht leer sein.",
+      "invalid_prefix_too_long": "Präfix darf höchstens 12 Zeichen lang sein.",
+      "no_signal_received": "Innerhalb von 10 Sekunden kein Signal empfangen. Bitte versuche es erneut."
+    }
+  },
+  "issues": {
+    "legacy_checksum": {
+      "title": "Gumax RF: Kalibrierung fehlt für {title}",
+      "description": "Diese Integration verwendete früher eine einzige Checksummen-Formel für alle Fernbedienungen — die stimmt nicht für jedes Gerät. **{title}** wurde noch nicht kalibriert.\n\nKlicke unten auf 'Reparieren', um die Kalibrierungsschritte (K1, K2, K9 erfassen) durchzuführen. Bis dahin verwendet diese Integration weiterhin die alte Formel.",
+      "fix_flow": {
+        "step": {
+          "capture_k1": {
+            "title": "Kalibrierung: Kanal K1",
+            "description": "Klicke auf Weiter und drücke danach eine beliebige Taste von **Kanal 1 (K1)** auf deiner Fernbedienung. Du hast 10 Sekunden.\n\n{progress}"
+          },
+          "capture_k1_wait": {
+            "title": "Warten auf K1-Signal…",
+            "description": "Noch **{remaining}** Sekunden\n\nDrücke eine Taste von Kanal 1 (K1)."
+          },
+          "capture_k2": {
+            "title": "Kalibrierung: Kanal K2",
+            "description": "Klicke auf Weiter und drücke danach eine beliebige Taste von **Kanal 2 (K2)** auf deiner Fernbedienung. Du hast 10 Sekunden.\n\n{progress}"
+          },
+          "capture_k2_wait": {
+            "title": "Warten auf K2-Signal…",
+            "description": "Noch **{remaining}** Sekunden\n\nDrücke eine Taste von Kanal 2 (K2)."
+          },
+          "capture_k9": {
+            "title": "Kalibrierung: Kanal K9",
+            "description": "Klicke auf Weiter und drücke danach eine beliebige Taste von **Kanal 9 (K9)** auf deiner Fernbedienung. Du hast 10 Sekunden.\n\n{progress}"
+          },
+          "capture_k9_wait": {
+            "title": "Warten auf K9-Signal…",
+            "description": "Noch **{remaining}** Sekunden\n\nDrücke eine Taste von Kanal 9 (K9)."
+          },
+          "calibration_share": {
+            "title": "Kalibrierung erfolgreich",
+            "description": "**Validierung:**\n{verify_block}\n\nDie Kalibrierung ist erfolgreich und wurde auf **{title}** angewendet.\n\nMöchtest du uns helfen, die Checksummen-Berechnung für andere Fernbedienungen zu verbessern? Kopiere den Block unten und poste ihn in [dieser GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). Das ist völlig optional — es wird nichts automatisch gesendet, und dieser Block enthält einen Code, der dein eigenes Gerät steuern kann, teile ihn also nur, wenn du damit einverstanden bist.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um abzuschließen."
+          },
+          "calibration_mismatch": {
+            "title": "Kalibrierung: unerwartetes Ergebnis",
+            "description": "**Validierung:**\n{verify_block}\n\nDie berechnete Kalibrierung stimmt nicht mit dem überein, was deine Fernbedienung tatsächlich gesendet hat. Das deutet auf einen Fehler in dieser Integration hin, nicht auf ein Problem mit deiner Fernbedienung oder deiner Eingabe.\n\nBitte melde dies mit dem Block unten über [ein neues GitHub-Issue](https://github.com/JimKoene/gumax-rf/issues/new). Die berechnete Kalibrierung wird währenddessen trotzdem auf **{title}** angewendet, damit dein Gerät weiter funktioniert.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um abzuschließen."
+          }
+        }
+      }
+    }
+  }
+}

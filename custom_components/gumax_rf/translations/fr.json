@@ -1,0 +1,195 @@
+{
+  "entity": {
+    "cover": {
+      "gumax_cover": {
+        "state": {
+          "open": "Ouvert (supposé)",
+          "closed": "Fermé (supposé)",
+          "opening": "Ouverture (supposé)",
+          "closing": "Fermeture (supposé)"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "learn": {
+        "title": "Gumax RF — apprentissage depuis la télécommande",
+        "description": "Sélectionnez le nœud ESPHome et cliquez sur Suivant. Vous aurez ensuite 10 secondes pour appuyer sur un bouton de votre télécommande.",
+        "data": {
+          "esphome_node": "Nom du nœud ESPHome"
+        },
+        "data_description": {
+          "esphome_node": "Sélectionnez un nœud ESPHome compatible 433 MHz détecté, ou saisissez un nom personnalisé. Les tirets sont automatiquement convertis en tirets bas."
+        }
+      },
+      "learn_wait": {
+        "title": "En attente d'un signal…",
+        "description": "Encore **{remaining}** secondes\n\nAppuyez sur un bouton de votre télécommande Gumax.\n\nID d'appareil détectés :\n{log}"
+      },
+      "learn_result": {
+        "title": "ID d'appareil détectés",
+        "description": "{log}",
+        "data": {
+          "device_id": "ID d'appareil"
+        },
+        "data_description": {
+          "device_id": "Sélectionnez un ID détecté ou saisissez-en un manuellement."
+        }
+      },
+      "capture_k1": {
+        "title": "Calibration : canal K1",
+        "description": "Cliquez sur Suivant, puis appuyez sur n'importe quel bouton du **canal 1 (K1)** de votre télécommande. Vous avez 10 secondes.\n\n{progress}"
+      },
+      "capture_k1_wait": {
+        "title": "En attente du signal K1…",
+        "description": "Encore **{remaining}** secondes\n\nAppuyez sur un bouton du canal 1 (K1)."
+      },
+      "capture_k2": {
+        "title": "Calibration : canal K2",
+        "description": "Cliquez sur Suivant, puis appuyez sur n'importe quel bouton du **canal 2 (K2)** de votre télécommande. Vous avez 10 secondes.\n\n{progress}"
+      },
+      "capture_k2_wait": {
+        "title": "En attente du signal K2…",
+        "description": "Encore **{remaining}** secondes\n\nAppuyez sur un bouton du canal 2 (K2)."
+      },
+      "capture_k9": {
+        "title": "Calibration : canal K9",
+        "description": "Cliquez sur Suivant, puis appuyez sur n'importe quel bouton du **canal 9 (K9)** de votre télécommande. Vous avez 10 secondes.\n\n{progress}"
+      },
+      "capture_k9_wait": {
+        "title": "En attente du signal K9…",
+        "description": "Encore **{remaining}** secondes\n\nAppuyez sur un bouton du canal 9 (K9)."
+      },
+      "calibration_share": {
+        "title": "Calibration réussie",
+        "description": "**Validation :**\n{verify_block}\n\nLa calibration a réussi et est déjà utilisée.\n\nSouhaitez-vous nous aider à améliorer le calcul de somme de contrôle pour d'autres télécommandes ? Copiez le bloc ci-dessous et publiez-le dans [cette discussion GitHub](https://github.com/JimKoene/gumax-rf/discussions/5). C'est entièrement facultatif — rien n'est envoyé automatiquement, et ce bloc contient un code qui peut contrôler votre propre appareil, ne le partagez donc que si cela vous convient.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour continuer."
+      },
+      "calibration_mismatch": {
+        "title": "Calibration : résultat inattendu",
+        "description": "**Validation :**\n{verify_block}\n\nLa calibration calculée ne reproduit pas ce que votre télécommande a réellement envoyé. Cela indique un bug dans cette intégration, pas un problème avec votre télécommande ou votre saisie.\n\nVeuillez le signaler avec le bloc ci-dessous via [une nouvelle issue GitHub](https://github.com/JimKoene/gumax-rf/issues/new). La calibration calculée est appliquée entre-temps, afin que votre appareil continue de fonctionner.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour continuer."
+      },
+      "reconfigure": {
+        "title": "Reconfigurer Gumax RF",
+        "description": "Nœud ESPHome actuel : **{current_node}**\n\nSélectionnez le nouveau nœud si vous l'avez renommé.",
+        "data": {
+          "esphome_node": "Nom du nœud ESPHome"
+        },
+        "data_description": {
+          "esphome_node": "Sélectionnez le nouveau nœud ESPHome compatible 433 MHz."
+        }
+      },
+      "prefix": {
+        "title": "Préfixe du nom de canal",
+        "description": "Définissez un préfixe pour les noms de canaux (max. 12 caractères). CC reste toujours CC.\n\nLe canal 1 sera nommé : **{example}**",
+        "data": {
+          "channel_prefix": "Préfixe"
+        },
+        "data_description": {
+          "channel_prefix": "Ex. 'C' → C1, C2 … ou 'Écran' → Écran1, Écran2 …"
+        }
+      }
+    },
+    "error": {
+      "invalid_device_id": "Valeur hexadécimale invalide (8 caractères max., ex. A1B2C3D4)",
+      "no_signal_received": "Aucun signal reçu dans les 10 secondes. Veuillez réessayer."
+    },
+    "abort": {
+      "already_configured": "Cet ID d'appareil est déjà configuré.",
+      "reconfigure_successful": "Intégration mise à jour.",
+      "no_esphome_nodes": "Aucun nœud ESPHome compatible 433 MHz trouvé. Assurez-vous que votre pont CC1101 est en ligne et réessayez."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Paramètres Gumax RF",
+        "menu_options": {
+          "configure_prefix": "Définir le préfixe du nom de canal",
+          "view_codes": "Voir les codes d'impulsion bruts calculés",
+          "capture_signal": "Capturer et analyser un signal"
+        }
+      },
+      "configure_prefix": {
+        "title": "Préfixe du nom de canal",
+        "description": "Définissez un préfixe personnalisé pour les noms de canaux (max. 12 caractères). CC reste toujours CC.\n\nLe canal 1 sera nommé : **{example}**",
+        "data": {
+          "channel_prefix": "Préfixe"
+        },
+        "data_description": {
+          "channel_prefix": "Ex. 'C' → C1, C2 … ou 'Écran' → Écran1, Écran2 …"
+        }
+      },
+      "view_codes": {
+        "title": "Voir les codes d'impulsion bruts",
+        "description": "Sélectionnez un canal pour voir les temps d'impulsion bruts de toutes les commandes.",
+        "data": {
+          "channel": "Canal"
+        }
+      },
+      "show_code": {
+        "title": "Codes d'impulsion bruts",
+        "description": "**{channel}**\n\n**montée :**\n{code_up}\n\n**descente :**\n{code_down}\n\n**stop :**\n{code_stop}"
+      },
+      "capture_signal": {
+        "title": "Capturer et analyser un signal",
+        "description": "Cliquez sur Suivant, puis appuyez **plusieurs fois** sur un bouton de votre télécommande Gumax. Vous avez 10 secondes. Seul un signal Gumax reconnaissable sera accepté."
+      },
+      "capture_signal_wait": {
+        "title": "En attente d'un signal…",
+        "description": "Encore **{remaining}** secondes\n\nAppuyez **plusieurs fois** sur un bouton de votre télécommande Gumax."
+      },
+      "capture_signal_result": {
+        "title": "Signal reçu",
+        "description": "**ID de la télécommande :** {device_id}\n**Canal :** {channel}\n**Commande :** {command}\n**Somme de contrôle :** {checksum} {checksum_valid}\n**Correspondance de l'encodeur :** {encode_match}\n\n**Signal brut :**\n{raw}\n\nCliquez sur Suivant pour capturer à nouveau."
+      }
+    },
+    "error": {
+      "invalid_prefix": "Le préfixe ne doit pas être vide.",
+      "invalid_prefix_too_long": "Le préfixe doit comporter au maximum 12 caractères.",
+      "no_signal_received": "Aucun signal reçu dans les 10 secondes. Veuillez réessayer."
+    }
+  },
+  "issues": {
+    "legacy_checksum": {
+      "title": "Gumax RF : calibration manquante pour {title}",
+      "description": "Cette intégration appliquait auparavant une seule formule de somme de contrôle à toutes les télécommandes — cette formule n'est pas correcte pour chaque appareil. **{title}** n'a pas encore été calibré.\n\nCliquez sur « Réparer » ci-dessous pour effectuer les étapes de calibration (capture de K1, K2, K9). D'ici là, cette intégration continue d'utiliser l'ancienne formule.",
+      "fix_flow": {
+        "step": {
+          "capture_k1": {
+            "title": "Calibration : canal K1",
+            "description": "Cliquez sur Suivant, puis appuyez sur n'importe quel bouton du **canal 1 (K1)** de votre télécommande. Vous avez 10 secondes.\n\n{progress}"
+          },
+          "capture_k1_wait": {
+            "title": "En attente du signal K1…",
+            "description": "Encore **{remaining}** secondes\n\nAppuyez sur un bouton du canal 1 (K1)."
+          },
+          "capture_k2": {
+            "title": "Calibration : canal K2",
+            "description": "Cliquez sur Suivant, puis appuyez sur n'importe quel bouton du **canal 2 (K2)** de votre télécommande. Vous avez 10 secondes.\n\n{progress}"
+          },
+          "capture_k2_wait": {
+            "title": "En attente du signal K2…",
+            "description": "Encore **{remaining}** secondes\n\nAppuyez sur un bouton du canal 2 (K2)."
+          },
+          "capture_k9": {
+            "title": "Calibration : canal K9",
+            "description": "Cliquez sur Suivant, puis appuyez sur n'importe quel bouton du **canal 9 (K9)** de votre télécommande. Vous avez 10 secondes.\n\n{progress}"
+          },
+          "capture_k9_wait": {
+            "title": "En attente du signal K9…",
+            "description": "Encore **{remaining}** secondes\n\nAppuyez sur un bouton du canal 9 (K9)."
+          },
+          "calibration_share": {
+            "title": "Calibration réussie",
+            "description": "**Validation :**\n{verify_block}\n\nLa calibration a réussi et a été appliquée à **{title}**.\n\nSouhaitez-vous nous aider à améliorer le calcul de somme de contrôle pour d'autres télécommandes ? Copiez le bloc ci-dessous et publiez-le dans [cette discussion GitHub](https://github.com/JimKoene/gumax-rf/discussions/5). C'est entièrement facultatif — rien n'est envoyé automatiquement, et ce bloc contient un code qui peut contrôler votre propre appareil, ne le partagez donc que si cela vous convient.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour terminer."
+          },
+          "calibration_mismatch": {
+            "title": "Calibration : résultat inattendu",
+            "description": "**Validation :**\n{verify_block}\n\nLa calibration calculée ne reproduit pas ce que votre télécommande a réellement envoyé. Cela indique un bug dans cette intégration, pas un problème avec votre télécommande ou votre saisie.\n\nVeuillez le signaler avec le bloc ci-dessous via [une nouvelle issue GitHub](https://github.com/JimKoene/gumax-rf/issues/new). La calibration calculée est appliquée entre-temps à **{title}**, afin que votre appareil continue de fonctionner.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour terminer."
+          }
+        }
+      }
+    }
+  }
+}

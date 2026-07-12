@@ -11,11 +11,18 @@ Space encodes the bit value; mark encodes the look-ahead to the next bit.
   mark   600 µs → next bit is 1
   mark   280 µs → next bit is 0 (or last bit)
 
-Verified against K1–K16 captures (100 % match).
-CC (broadcast-all) uses stored captures; b8 does not follow the formula.
+Checksum (b8) is x_dev + b5 + b6 + b7, wrapped mod 256 with the top bit
+flipped on overflow. x_dev is a per-remote constant that cannot be derived
+from device_id — it must be learned from a live capture (see DeviceProfile).
+K1 and K9 sometimes use x_dev plus a small per-remote correction instead of
+x_dev directly; b9 has no known formula and is stored per remote as well.
+CC (broadcast-all) uses the same formula as any other channel, but excludes
+b5 (its b5 is a wildcard sentinel, not a real per-channel value).
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 PREAMBLE: list[int] = [
     262, -612, 269, -610, 268, -622, 269, -610,
@@ -34,25 +41,95 @@ _CH_VALS: dict[int, int] = {
     13: 0x0008, 14: 0x0010, 15: 0x0020, 16: 0x0040,
 }
 
-_CMD_B7:     dict[str, int] = {"up": 0x05, "down": 0x21, "stop": 0x11}
-_CMD_OFFSET: dict[str, int] = {"up": 0,   "down": 28,   "stop": 12}
-
-# K1 and K9 carry parity bit = 1; all others = 0.
-_B9: dict[int, int] = {ch: 1 if ch in (1, 9) else 0 for ch in range(1, 17)}
+_CMD_B7: dict[str, int] = {"up": 0x05, "down": 0x21, "stop": 0x11}
 
 
-def _checksum(cv: int, command: str) -> int:
-    # cv & 0x7F masks bit-7 of b6 (K1's channel bit) so K1 and K9 share the same base.
-    raw_base = 217 + (cv >> 8) + (cv & 0x7F)
-    base = (raw_base % 256) ^ 0x80 if raw_base >= 256 else raw_base
-    raw = base + _CMD_OFFSET[command]
-    return (raw % 256) ^ 0x80 if raw >= 256 else raw
+@dataclass(frozen=True)
+class DeviceProfile:
+    """Per-remote calibration, learned from live captures (see config flow).
+
+    x_dev is a constant baked into the transmitter chip; it cannot be derived
+    from device_id and must be learned from a real capture on any channel
+    other than K1/K9. k1_extra/k9_extra correct for two channels that were
+    observed to sometimes add a small extra amount on top of x_dev — some
+    remotes need it, others don't, so it must be measured, not assumed.
+
+    b9 (the final bit of the packet) has no known formula. b9_k1/b9_k9 hold
+    the directly observed values for those two channels; b9_default is used
+    for every other channel, including CC.
+    """
+
+    x_dev: int
+    k1_extra: int = 0
+    k9_extra: int = 0
+    b9_default: int = 1
+    b9_k1: int = 1
+    b9_k9: int = 1
+
+
+def _wrap(total: int) -> int:
+    return (total % 256) ^ 0x80 if total >= 256 else total
+
+
+def _checksum(x_dev: int, b5: int, b6: int, b7: int, *, include_b5: bool = True) -> int:
+    return _wrap(x_dev + b7 + b6 + (b5 if include_b5 else 0))
+
+
+def infer_x_dev(known_sum: int, checksum: int, hint: int | None = None) -> int:
+    """Invert the checksum formula.
+
+    Given b5+b6+b7 (known_sum) and an observed checksum byte, recover the
+    additive constant that produced it — x_dev itself for a normal channel,
+    or x_dev+k1_extra / x_dev+k9_extra for a K1/K9 capture.
+
+    The equation can have more than one valid solution in [0, 255] (the wrap
+    can plausibly have triggered or not) — this happens more often for K1,
+    whose channel bit makes known_sum large. Without a hint, the no-overflow
+    solution is preferred (right for deriving x_dev itself from a "normal"
+    channel like K2). When deriving a K1/K9 extra on top of an already-known
+    x_dev, pass hint=x_dev so the candidate closest to it — i.e. the smallest
+    extra — is chosen; real remotes only ever add a small correction there.
+    """
+    candidates: list[int] = []
+    candidate = checksum - known_sum
+    if 0 <= candidate <= 255:
+        candidates.append(candidate)
+    for overflow_count in (1, 2, 3):
+        candidate = 256 * overflow_count + (checksum ^ 0x80) - known_sum
+        if 0 <= candidate <= 255 and candidate not in candidates:
+            candidates.append(candidate)
+    if not candidates:
+        raise ValueError("could not infer x_dev from checksum/sum pair")
+    if hint is None or len(candidates) == 1:
+        return candidates[0]
+    return min(candidates, key=lambda c: abs(c - hint))
+
+
+def channel_bytes(channel: int, command: str) -> tuple[int, int, int]:
+    """Return the canonical (b5, b6, b7) for a channel/command pair."""
+    cv = _CH_VALS[channel]
+    b5 = (cv >> 8) & 0xFF
+    b6 = cv & 0xFF
+    # K9 has cv=0x0000 (no channel bit); bit 7 of b7 flags it as a valid channel.
+    b7 = _CMD_B7[command] | (0x80 if channel == 9 else 0)
+    return b5, b6, b7
+
+
+def _pulses_from_bits(bits: str) -> list[int]:
+    pulses: list[int] = list(PREAMBLE)
+    for i, bit in enumerate(bits):
+        space = -600 if bit == "0" else -280
+        mark = 600 if i + 1 < len(bits) and bits[i + 1] == "1" else 280
+        pulses.append(space)
+        pulses.append(mark)
+    return pulses
 
 
 def encode(
     channel: int,
     command: str,
-    device_id: str = DEVICE_ID_DEFAULT,
+    device_id: str,
+    profile: DeviceProfile,
 ) -> list[int]:
     """Return a pulse list (µs) for the given channel and command.
 
@@ -63,6 +140,8 @@ def encode(
         command: 'up', 'down', or 'stop'
         device_id: 32-character binary string. Use device_id_from_hex() to
                    convert a hex ID (e.g. 'A1B2C3D4') to the required format.
+        profile: per-remote calibration (x_dev, K1/K9 corrections, b9 values),
+                 learned via the config flow's capture steps.
     """
     if channel not in _CH_VALS:
         raise ValueError(f"channel must be 1–16, got {channel!r}")
@@ -71,13 +150,14 @@ def encode(
     if len(device_id) != 32 or not all(c in "01" for c in device_id):
         raise ValueError("device_id must be a 32-character binary string")
 
-    cv = _CH_VALS[channel]
-    b5 = (cv >> 8) & 0xFF
-    b6 = cv & 0xFF
-    # K9 has cv=0x0000 (no channel bit); bit 7 of b7 flags it as a valid channel.
-    b7 = _CMD_B7[command] | (0x80 if channel == 9 else 0)
-    cs = _checksum(cv, command)
-    b9 = _B9[channel]
+    b5, b6, b7 = channel_bytes(channel, command)
+    if channel == 1:
+        x_dev, b9 = profile.x_dev + profile.k1_extra, profile.b9_k1
+    elif channel == 9:
+        x_dev, b9 = profile.x_dev + profile.k9_extra, profile.b9_k9
+    else:
+        x_dev, b9 = profile.x_dev, profile.b9_default
+    cs = _checksum(x_dev, b5, b6, b7)
 
     bits = (
         device_id
@@ -88,15 +168,7 @@ def encode(
         + str(b9)
     )
     assert len(bits) == 65, f"expected 65 bits, got {len(bits)}"
-
-    pulses: list[int] = list(PREAMBLE)
-    for i, bit in enumerate(bits):
-        space = -600 if bit == "0" else -280
-        mark  =  600 if i + 1 < len(bits) and bits[i + 1] == "1" else 280
-        pulses.append(space)
-        pulses.append(mark)
-
-    return pulses
+    return _pulses_from_bits(bits)
 
 
 def device_id_from_hex(hex_str: str) -> str:
@@ -105,58 +177,28 @@ def device_id_from_hex(hex_str: str) -> str:
     return format(int(cleaned, 16), "032b")
 
 
-# CC (broadcast-all channels) uses stored captures.
-# cv = 0x7FFF gives b8_base = 216 which does not follow the checksum formula
-# (formula would give 87). The +28/+12 offsets for down/stop still apply.
-# b8: up=216, down=244, stop=228.
-_CC_CAPTURES: dict[str, list[int]] = {
-    "up": [
-        230, -652, 225, -647, 239, -633, 239, -650, 230, -638, 235, -636, 240, -652, 4969,
-        -632, 580, -296, 267, -620, 583, -295, 260, -610, 276, -603, 268, -610, 594, -295,
-        581, -297, 590, -294, 260, -618, 583, -296, 593, -287, 267, -598, 278, -608, 593,
-        -294, 588, -281, 275, -616, 268, -603, 590, -295, 586, -283, 280, -609, 594, -284,
-        595, -281, 269, -622, 588, -281, 274, -614, 582, -296, 592, -287, 581, -296, 594,
-        -280, 605, -278, 275, -607, 591, -280, 600, -281, 589, -294, 598, -282, 591, -294,
-        584, -284, 592, -300, 580, -297, 581, -294, 597, -282, 599, -281, 590, -289, 593,
-        -291, 592, -279, 596, -283, 598, -282, 279, -602, 267, -607, 279, -611, 266, -608,
-        597, -282, 271, -610, 589, -294, 597, -281, 585, -285, 278, -611, 593, -279, 591,
-        -297, 262, -609, 274, -618, 255, -611, 281, -594, 584,
-    ],
-    "down": [
-        252, -623, 265, -621, 257, -619, 262, -621, 253, -632, 245, -636, 253, -616, 4995,
-        -633, 582, -297, 257, -622, 581, -296, 266, -609, 272, -606, 273, -611, 590, -292,
-        581, -291, 589, -290, 268, -610, 595, -294, 582, -296, 261, -610, 271, -609, 595,
-        -284, 593, -285, 267, -624, 255, -624, 585, -295, 584, -284, 266, -621, 583, -297,
-        593, -275, 268, -619, 588, -293, 265, -607, 586, -296, 589, -294, 586, -293, 590,
-        -292, 583, -284, 280, -607, 582, -296, 594, -280, 596, -296, 588, -282, 588, -291,
-        594, -299, 576, -290, 596, -284, 594, -297, 578, -303, 579, -291, 596, -286, 593,
-        -295, 579, -296, 581, -294, 585, -294, 272, -612, 591, -293, 256, -613, 267, -621,
-        267, -603, 281, -606, 592, -289, 582, -295, 595, -296, 575, -295, 590, -281, 268,
-        -624, 581, -294, 268, -608, 266, -621, 266, -592, 594,
-    ],
-    "stop": [
-        267, -620, 261, -610, 276, -602, 268, -611, 267, -621, 268, -609, 262, -624, 4987,
-        -636, 581, -294, 266, -609, 592, -294, 259, -618, 269, -612, 265, -615, 583, -297,
-        589, -293, 586, -283, 268, -621, 582, -293, 589, -290, 264, -608, 272, -611, 586,
-        -292, 594, -284, 280, -607, 267, -610, 595, -279, 595, -284, 272, -616, 584, -295,
-        583, -296, 263, -616, 584, -296, 264, -617, 584, -297, 579, -298, 592, -277, 604,
-        -279, 596, -283, 272, -608, 595, -296, 582, -294, 585, -294, 585, -297, 586, -296,
-        579, -297, 593, -280, 595, -294, 587, -294, 587, -279, 596, -285, 598, -281, 592,
-        -297, 581, -294, 597, -283, 586, -295, 264, -616, 269, -609, 593, -282, 265, -610,
-        279, -609, 271, -606, 585, -290, 590, -294, 585, -295, 589, -294, 259, -611, 268,
-        -619, 591, -292, 266, -607, 264, -620, 260, -590, 592,
-    ],
-}
+def encode_cc(command: str, device_id: str, profile: DeviceProfile) -> list[int]:
+    """Return a pulse list for a CC (broadcast-all) command.
 
-
-def encode_cc(command: str) -> list[int]:
-    """Return the stored capture pulse list for a CC (broadcast-all) command.
-
-    CC pulses cannot be derived from the checksum formula (b8_base=216 for CC
-    vs 87 from the formula). All three commands are available as captures.
+    Same formula as encode(), but b5 (0x7F, a wildcard sentinel rather than a
+    real channel value) is excluded from the checksum sum, and b9 always uses
+    profile.b9_default.
     """
-    if command not in _CC_CAPTURES:
-        raise ValueError(
-            f"command must be 'up', 'down', or 'stop', got {command!r}"
-        )
-    return list(_CC_CAPTURES[command])
+    if command not in _CMD_B7:
+        raise ValueError(f"command must be 'up', 'down', or 'stop', got {command!r}")
+    if len(device_id) != 32 or not all(c in "01" for c in device_id):
+        raise ValueError("device_id must be a 32-character binary string")
+
+    b7 = _CMD_B7[command] | 0x80
+    cs = _checksum(profile.x_dev, 0x7F, 0xFF, b7, include_b5=False)
+
+    bits = (
+        device_id
+        + format(0x7F, "08b")
+        + format(0xFF, "08b")
+        + format(b7, "08b")
+        + format(cs, "08b")
+        + str(profile.b9_default)
+    )
+    assert len(bits) == 65, f"expected 65 bits, got {len(bits)}"
+    return _pulses_from_bits(bits)

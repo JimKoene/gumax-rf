@@ -6,8 +6,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 
-from .const import CONF_CHANNEL_PREFIX, CONF_DEVICE_ID, CONF_ESPHOME_NODE, DEFAULT_CHANNEL_PREFIX, DOMAIN
+from .const import (
+    CONF_CHANNEL_PREFIX,
+    CONF_DEVICE_ID,
+    CONF_ESPHOME_NODE,
+    CONF_X_DEV,
+    DEFAULT_CHANNEL_PREFIX,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,11 +52,29 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     return True
 
 
+_LEGACY_ISSUE_PREFIX = "legacy_checksum_"
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if CONF_CHANNEL_PREFIX not in entry.options:
         hass.config_entries.async_update_entry(
             entry, options={**entry.options, CONF_CHANNEL_PREFIX: DEFAULT_CHANNEL_PREFIX}
         )
+
+    if CONF_X_DEV not in entry.data:
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"{_LEGACY_ISSUE_PREFIX}{entry.entry_id}",
+            is_fixable=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="legacy_checksum",
+            translation_placeholders={"title": entry.title},
+            data={"entry_id": entry.entry_id},
+        )
+    else:
+        ir.async_delete_issue(hass, DOMAIN, f"{_LEGACY_ISSUE_PREFIX}{entry.entry_id}")
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
@@ -60,3 +86,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    ir.async_delete_issue(hass, DOMAIN, f"{_LEGACY_ISSUE_PREFIX}{entry.entry_id}")

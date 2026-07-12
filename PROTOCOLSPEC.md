@@ -65,42 +65,75 @@ Reason: cv=0x0000 has no channel bit; bit 7 of b7 identifies K9 as a valid chann
 
 ## Checksum (b8)
 
-```python
-def b8_up(cv):
-    """Base checksum from channel value."""
-    raw = 217 + (cv >> 8) + (cv & 0x7F)  # cv & 0x7F masks bit 7 of b6
-    return (raw % 256) ^ 0x80 if raw >= 256 else raw
+**b8 depends on the specific remote, not just on channel/command.** Every
+remote transmits with a per-device additive constant (`x_dev`) baked into
+the chip; it cannot be derived from `device_id` — it must be learned from a
+live capture. (An earlier version of this spec treated `217` as a universal
+constant; it was actually `x_dev` for one specific remote, discovered only
+once a second physical remote's captures stopped matching the formula.)
 
-def b8(cv, command):
-    """Checksum including command offset."""
-    offsets = {'up': 0, 'down': 28, 'stop': 12}
-    raw = b8_up(cv) + offsets[command]
-    return (raw % 256) ^ 0x80 if raw >= 256 else raw
+```python
+def wrap(total):
+    return (total % 256) ^ 0x80 if total >= 256 else total
+
+def b8(x_dev, b5, b6, b7):
+    """Checksum for a 'normal' channel (not K1/K9)."""
+    return wrap(x_dev + b5 + b6 + b7)
+
+def b8_cc(x_dev, b6, b7):
+    """CC excludes b5 — it's a wildcard sentinel (0x7F), not a real channel value."""
+    return wrap(x_dev + b6 + b7)
 ```
 
-**Rule**: flip bit 7 (XOR 0x80) only on byte overflow (sum >= 256).
+**K1 and K9 sometimes need a small additive correction on top of `x_dev`**
+(`x_dev + k1_extra` / `x_dev + k9_extra`). Some remotes need it (seen: +1),
+others don't (seen: +0) — this is per-remote and must be learned per remote,
+same as `x_dev` itself.
 
-### Verified b8 values
+`x_dev` (and k1_extra/k9_extra) are learned by inverting the formula against
+one real capture per channel: `x_dev = wrap⁻¹(b8 − b5 − b6 − b7)`. The
+inversion can have two valid solutions (the overflow either did or didn't
+trigger) — resolved by preferring the no-overflow solution when deriving
+`x_dev` itself, or the solution closest to the already-known `x_dev` when
+deriving k1_extra/k9_extra (see `infer_x_dev()` in `gumax.py`).
 
-| Channel | b8_up | b8_down | b8_stop |
-|---------|-------|---------|---------|
-| K1      | 217   | 245     | 229     |
-| K2      | 218   | 246     | 230     |
-| K3      | 219   | 247     | 231     |
-| K4      | 221   | 249     | 233     |
-| K5      | 225   | 253     | 237     |
-| K6      | 233   | 133     | 245     |
-| K7      | 249   | 149     | 133     |
-| K8      | 153   | 181     | 165     |
-| K9      | 217   | —       | 229     |
-| K14     | 233   | —       | 245     |
-| K15     | 249   | —       | 133     |
-| K16     | 153   | —       | 165     |
+### x_dev observed on real remotes
+
+Three physical remotes have been captured and decoded; each had a different
+`x_dev` (one of them, the reference remote used for the encoder tests below,
+happens to be `0xD4`). Real device_id/x_dev/checksum values are deliberately
+**not** published here or in the public test suite — they're derived from
+real users' physical remotes and, even though no formula links x_dev back to
+device_id (see below), there's no reason to publish someone else's hardware
+identifiers. Contributors with access to real captures can drop them in
+`rf_protocols/tests/local_captures.py` (gitignored) to exercise the same
+test cases locally — see that file's docstring for the expected format.
+
+No formula relating `device_id` to `x_dev` has been found (tried: byte sums,
+XOR, bit-reversed variants, running checksums, with/without the 217/0xD9
+constant — none matched across all three remotes). With only three data
+points and no chip datasheet, further reverse-engineering is unlikely to be
+productive; treat `x_dev` as opaque and always learn it from a capture.
 
 ## Parity bit (b9)
 
-| b9 = 1 | K1, K9 |
-| b9 = 0 | all other channels |
+**No formula found.** b9 is constant per channel within one remote (all of
+up/down/stop on the same channel give the same b9), but which channels get
+0 vs 1 differs per remote — and not in a way that maps cleanly onto a
+per-channel table. Of the three remotes captured, one was the exact inverse
+of the other two on every channel tested (K1, K7, K12, CC) — suggestive of
+"one base pattern, flipped per remote by a single bit," but that's a
+hypothesis from 3 data points, not a proven rule, and it hasn't been checked
+on any channel other than K1/K7/K12/CC. Channels K2-K6, K8, K10, K11,
+K13-K16 have never been captured on any remote. See `local_captures.py`
+(same note as above) for the actual per-channel values behind this finding.
+
+Practical handling (see `DeviceProfile` in `gumax.py`): store the directly
+observed b9 for K1 and K9 per remote (`b9_k1`, `b9_k9`), and use the value
+observed on any other captured "normal" channel (e.g. K2) as `b9_default`
+for every other channel, including CC. This is unverified for untested
+channels, but matches everything measured so far (K7/K12/CC always agree
+within a remote).
 
 ## Pulse encoding
 
@@ -128,6 +161,10 @@ Timings:
 
 ## Complete encoder (Python)
 
+See `encode()`/`encode_cc()`/`DeviceProfile` in `rf_protocols/protocols/gumax.py`
+(kept in sync with `custom_components/gumax_rf/_protocol.py`) for the actual
+implementation. Sketch:
+
 ```python
 PREAMBLE = [262, -612, 269, -610, 268, -622, 269, -610,
             262, -610, 265, -613, 268, -611, 4998]
@@ -141,34 +178,34 @@ CH_VALS = {
     13: 0x0008, 14: 0x0010, 15: 0x0020, 16: 0x0040,
 }
 
-CH_B9 = {ch: 1 if ch in [1, 9] else 0 for ch in range(1, 17)}
-
-CMD_B7     = {'up': 5, 'down': 33, 'stop': 17}
-CMD_OFFSET = {'up': 0, 'down': 28, 'stop': 12}
+CMD_B7 = {'up': 5, 'down': 33, 'stop': 17}
 
 
-def b8_up(cv):
-    raw = 217 + (cv >> 8) + (cv & 0x7F)
-    return (raw % 256) ^ 0x80 if raw >= 256 else raw
+def wrap(total):
+    return (total % 256) ^ 0x80 if total >= 256 else total
 
 
-def b8(cv, command):
-    raw = b8_up(cv) + CMD_OFFSET[command]
-    return (raw % 256) ^ 0x80 if raw >= 256 else raw
-
-
-def make_command(channel, command):
+def make_command(channel, command, profile):
+    """profile = DeviceProfile(x_dev, k1_extra, k9_extra, b9_default, b9_k1, b9_k9),
+    learned from a live capture of THIS remote — see the config flow's
+    capture_k1/k2/k9 steps."""
     cv = CH_VALS[channel]
     b5 = (cv >> 8) & 0xFF
     b6 = cv & 0xFF
     b7 = CMD_B7[command] | (0x80 if channel == 9 else 0)
-    b9 = CH_B9[channel]
+
+    if channel == 1:
+        x_dev, b9 = profile.x_dev + profile.k1_extra, profile.b9_k1
+    elif channel == 9:
+        x_dev, b9 = profile.x_dev + profile.k9_extra, profile.b9_k9
+    else:
+        x_dev, b9 = profile.x_dev, profile.b9_default
 
     bits = (DEVICE_ID
             + format(b5, '08b')
             + format(b6, '08b')
             + format(b7, '08b')
-            + format(b8(cv, command), '08b')
+            + format(wrap(x_dev + b5 + b6 + b7), '08b')
             + str(b9))
 
     pulses = list(PREAMBLE)
@@ -183,24 +220,41 @@ def make_command(channel, command):
 
 ## Generic device ID
 
-The device ID is an arbitrary 32-bit value that identifies a remote. Any value can be used. The motors are paired to a specific ID via their learn mode — see the motor manual for pairing instructions.
+The device ID is a 32-bit value that identifies a remote. The motors are
+paired to a specific ID via their learn mode — see the motor manual for
+pairing instructions. Unlike b8/b9, `device_id` alone is not enough to
+control a motor: the checksum also needs that remote's `x_dev` (see above),
+so a brand new/invented device_id cannot be used without first calibrating
+it against a real capture from a matching remote.
 
 ## CC (broadcast all channels)
 
-CC is fully calculated. CV=0x7FFF (b5=0x7F, b6=0xFF).
+CC uses the same formula as any other channel, just with b5 excluded from
+the checksum sum (CV=0x7FFF is a wildcard sentinel, not a real per-channel
+value — including it in the sum never matched any real capture).
 
 | Field | Value |
 |-------|-------|
 | b5 | 0x7F |
 | b6 | 0xFF |
 | b7 | CMD_B7[command] \| 0x80 (bit 7 set — same rule as K9) |
-| b8 | 216 + CMD_OFFSET[command] (up=216, down=244, stop=228) |
-| b9 | 0 |
+| b8 | wrap(x_dev + b6 + b7) |
+| b9 | profile.b9_default (same value as the remote's other "normal" channels) |
 
-b8 does **not** follow `_checksum()` — the formula yields b8_base=87 (sum 471 → overflow → XOR), but decoded captures show b8_base=**216**. The +28/+12 command offsets still apply. Hardcoded as `_CC_B8_BASE = 216`.
+An earlier version of this spec described CC as needing stored/hardcoded
+captures because it "didn't follow the formula" — that was because the
+formula being compared against was per-channel/command only, with no
+device-specific term and no b5-exclusion rule. Both were wrong, not CC.
 
 ## Verified captures
 
-All K1–K11 captures have been verified (100% match) against the formula.
-K12–K16 have been captured but not tested on a motor (not paired).
-CC has been decoded and verified: b7/b8/b9 confirmed across all three commands.
+The channel/command table under "Checksum" above was cross-validated
+against a working ESPHome YAML reference implementation for one specific
+remote (its `x_dev` happens to equal `0xD4`).
+
+Separately, three physical remotes had their CC/K1/K7/K12 channels captured
+and decoded directly — 36/36 checksums matched the `x_dev`-based formula
+above (device IDs deliberately omitted, see "Checksum" section). K2-K6, K8,
+K10, K11, K13-K16 and K9 have not been captured on any of the three remotes
+and their b9 in particular should be treated as unverified per remote (see
+"Parity bit").

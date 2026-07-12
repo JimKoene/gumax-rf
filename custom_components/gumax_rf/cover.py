@@ -20,7 +20,7 @@ from .const import (
     DEFAULT_CHANNEL_PREFIX,
     DOMAIN,
 )
-from .helpers import device_info_for_entry
+from .helpers import device_info_for_entry, device_profile_for_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -156,13 +156,14 @@ class GumaxCover(_GumaxCoverBase):
         self._channel = channel
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
         self._device_id_bin = device_id_from_hex(device_id_hex)
+        self._profile = device_profile_for_entry(entry)
         self._node_name: str = entry.data[CONF_ESPHOME_NODE]
         prefix = entry.options.get(CONF_CHANNEL_PREFIX, DEFAULT_CHANNEL_PREFIX)
         self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{self._node_name}_{channel}"
         self._attr_name = f"{prefix}{channel}"
 
     def _build_pulses(self, command: str) -> list[int]:
-        return encode(self._channel, command, self._device_id_bin)
+        return encode(self._channel, command, self._device_id_bin, self._profile)
 
 
 class GumaxCCCover(_GumaxCoverBase):
@@ -175,7 +176,8 @@ class GumaxCCCover(_GumaxCoverBase):
         self._node_name: str = entry.data[CONF_ESPHOME_NODE]
         device_id_hex: str = entry.data[CONF_DEVICE_ID]
         self._device_id_bin = device_id_from_hex(device_id_hex)
+        self._profile = device_profile_for_entry(entry)
         self._attr_unique_id = f"{DOMAIN}_{device_id_hex}_{self._node_name}_cc"
 
     def _build_pulses(self, command: str) -> list[int]:
-        return encode_cc(command, self._device_id_bin)
+        return encode_cc(command, self._device_id_bin, self._profile)

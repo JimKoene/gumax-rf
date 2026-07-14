@@ -63,11 +63,11 @@
       },
       "calibration_share": {
         "title": "Calibration successful",
-        "description": "**Validation:**\n{verify_block}\n\nCalibration succeeded and is already in use.\n\nWant to help improve the checksum calculation for other remotes? Copy the block below and post it in [this GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). This is entirely optional — nothing is sent automatically, and this block contains a code that can control your own device, so only share it if you're fine with that.\n\n```\n{share_block}\n```\n\nClick Next to continue."
+        "description": "**Validation:**\n{verify_block}\n\nCalibration succeeded and is already in use.\n\nWant to help improve the checksum calculation for other remotes? Copy the block below and post it in [this GitHub Discussion]({discussion_url}). This is entirely optional — nothing is sent automatically, and this block contains a code that can control your own device, so only share it if you're fine with that.\n\n```\n{share_block}\n```\n\nClick Next to continue."
       },
       "calibration_mismatch": {
         "title": "Calibration: unexpected result",
-        "description": "**Validation:**\n{verify_block}\n\nThe calculated calibration doesn't reproduce what your remote actually sent. That points to a bug in this integration, not a problem with your remote or your input.\n\nPlease report this with the block below via [a new GitHub issue](https://github.com/JimKoene/gumax-rf/issues/new). The calculated calibration is applied in the meantime, so your device keeps working.\n\n```\n{share_block}\n```\n\nClick Next to continue."
+        "description": "**Validation:**\n{verify_block}\n\nThe calculated calibration doesn't reproduce what your remote actually sent. That points to a bug in this integration, not a problem with your remote or your input.\n\nPlease report this with the block below via [a new GitHub issue]({issue_url}). The calculated calibration is applied in the meantime, so your device keeps working.\n\n```\n{share_block}\n```\n\nClick Next to continue."
       },
       "reconfigure": {
         "title": "Reconfigure Gumax RF",
@@ -182,11 +182,11 @@
           },
           "calibration_share": {
             "title": "Calibration successful",
-            "description": "**Validation:**\n{verify_block}\n\nCalibration succeeded and has been applied to **{title}**.\n\nWant to help improve the checksum calculation for other remotes? Copy the block below and post it in [this GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). This is entirely optional — nothing is sent automatically, and this block contains a code that can control your own device, so only share it if you're fine with that.\n\n```\n{share_block}\n```\n\nClick Next to finish."
+            "description": "**Validation:**\n{verify_block}\n\nCalibration succeeded and has been applied to **{title}**.\n\nWant to help improve the checksum calculation for other remotes? Copy the block below and post it in [this GitHub Discussion]({discussion_url}). This is entirely optional — nothing is sent automatically, and this block contains a code that can control your own device, so only share it if you're fine with that.\n\n```\n{share_block}\n```\n\nClick Next to finish."
           },
           "calibration_mismatch": {
             "title": "Calibration: unexpected result",
-            "description": "**Validation:**\n{verify_block}\n\nThe calculated calibration doesn't reproduce what your remote actually sent. That points to a bug in this integration, not a problem with your remote or your input.\n\nPlease report this with the block below via [a new GitHub issue](https://github.com/JimKoene/gumax-rf/issues/new). The calculated calibration is applied in the meantime to **{title}**, so your device keeps working.\n\n```\n{share_block}\n```\n\nClick Next to finish."
+            "description": "**Validation:**\n{verify_block}\n\nThe calculated calibration doesn't reproduce what your remote actually sent. That points to a bug in this integration, not a problem with your remote or your input.\n\nPlease report this with the block below via [a new GitHub issue]({issue_url}). The calculated calibration is applied in the meantime to **{title}**, so your device keeps working.\n\n```\n{share_block}\n```\n\nClick Next to finish."
           }
         }
       }

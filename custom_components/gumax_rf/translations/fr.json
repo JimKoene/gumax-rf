@@ -63,11 +63,11 @@
       },
       "calibration_share": {
         "title": "Calibration réussie",
-        "description": "**Validation :**\n{verify_block}\n\nLa calibration a réussi et est déjà utilisée.\n\nSouhaitez-vous nous aider à améliorer le calcul de somme de contrôle pour d'autres télécommandes ? Copiez le bloc ci-dessous et publiez-le dans [cette discussion GitHub](https://github.com/JimKoene/gumax-rf/discussions/5). C'est entièrement facultatif — rien n'est envoyé automatiquement, et ce bloc contient un code qui peut contrôler votre propre appareil, ne le partagez donc que si cela vous convient.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour continuer."
+        "description": "**Validation :**\n{verify_block}\n\nLa calibration a réussi et est déjà utilisée.\n\nSouhaitez-vous nous aider à améliorer le calcul de somme de contrôle pour d'autres télécommandes ? Copiez le bloc ci-dessous et publiez-le dans [cette discussion GitHub]({discussion_url}). C'est entièrement facultatif — rien n'est envoyé automatiquement, et ce bloc contient un code qui peut contrôler votre propre appareil, ne le partagez donc que si cela vous convient.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour continuer."
       },
       "calibration_mismatch": {
         "title": "Calibration : résultat inattendu",
-        "description": "**Validation :**\n{verify_block}\n\nLa calibration calculée ne reproduit pas ce que votre télécommande a réellement envoyé. Cela indique un bug dans cette intégration, pas un problème avec votre télécommande ou votre saisie.\n\nVeuillez le signaler avec le bloc ci-dessous via [une nouvelle issue GitHub](https://github.com/JimKoene/gumax-rf/issues/new). La calibration calculée est appliquée entre-temps, afin que votre appareil continue de fonctionner.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour continuer."
+        "description": "**Validation :**\n{verify_block}\n\nLa calibration calculée ne reproduit pas ce que votre télécommande a réellement envoyé. Cela indique un bug dans cette intégration, pas un problème avec votre télécommande ou votre saisie.\n\nVeuillez le signaler avec le bloc ci-dessous via [une nouvelle issue GitHub]({issue_url}). La calibration calculée est appliquée entre-temps, afin que votre appareil continue de fonctionner.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour continuer."
       },
       "reconfigure": {
         "title": "Reconfigurer Gumax RF",
@@ -182,11 +182,11 @@
           },
           "calibration_share": {
             "title": "Calibration réussie",
-            "description": "**Validation :**\n{verify_block}\n\nLa calibration a réussi et a été appliquée à **{title}**.\n\nSouhaitez-vous nous aider à améliorer le calcul de somme de contrôle pour d'autres télécommandes ? Copiez le bloc ci-dessous et publiez-le dans [cette discussion GitHub](https://github.com/JimKoene/gumax-rf/discussions/5). C'est entièrement facultatif — rien n'est envoyé automatiquement, et ce bloc contient un code qui peut contrôler votre propre appareil, ne le partagez donc que si cela vous convient.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour terminer."
+            "description": "**Validation :**\n{verify_block}\n\nLa calibration a réussi et a été appliquée à **{title}**.\n\nSouhaitez-vous nous aider à améliorer le calcul de somme de contrôle pour d'autres télécommandes ? Copiez le bloc ci-dessous et publiez-le dans [cette discussion GitHub]({discussion_url}). C'est entièrement facultatif — rien n'est envoyé automatiquement, et ce bloc contient un code qui peut contrôler votre propre appareil, ne le partagez donc que si cela vous convient.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour terminer."
           },
           "calibration_mismatch": {
             "title": "Calibration : résultat inattendu",
-            "description": "**Validation :**\n{verify_block}\n\nLa calibration calculée ne reproduit pas ce que votre télécommande a réellement envoyé. Cela indique un bug dans cette intégration, pas un problème avec votre télécommande ou votre saisie.\n\nVeuillez le signaler avec le bloc ci-dessous via [une nouvelle issue GitHub](https://github.com/JimKoene/gumax-rf/issues/new). La calibration calculée est appliquée entre-temps à **{title}**, afin que votre appareil continue de fonctionner.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour terminer."
+            "description": "**Validation :**\n{verify_block}\n\nLa calibration calculée ne reproduit pas ce que votre télécommande a réellement envoyé. Cela indique un bug dans cette intégration, pas un problème avec votre télécommande ou votre saisie.\n\nVeuillez le signaler avec le bloc ci-dessous via [une nouvelle issue GitHub]({issue_url}). La calibration calculée est appliquée entre-temps à **{title}**, afin que votre appareil continue de fonctionner.\n\n```\n{share_block}\n```\n\nCliquez sur Suivant pour terminer."
           }
         }
       }

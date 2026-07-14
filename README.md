@@ -107,16 +107,23 @@ Copy the folder `custom_components/gumax_rf/` to your HA configuration directory
   custom_components/
     gumax_rf/
       __init__.py
+      _calibration_flow.py
       _protocol.py
+      binary_sensor.py
       config_flow.py
       const.py
       cover.py
+      helpers.py
       icon.png
       manifest.json
+      repairs.py
+      sensor.py
       strings.json
       translations/
         nl.json
         en.json
+        de.json
+        fr.json
 ```
 
 Then restart Home Assistant.
@@ -127,17 +134,23 @@ Then restart Home Assistant.
 
 1. Go to **Settings → Devices & services → + Add integration**
 2. Search for **Gumax RF** and click it
-3. Choose a setup method:
+3. Select the ESPHome node (auto-detected if the CC1101 bridge is online), then press a button on your existing Gumax remote — the integration captures the Device ID automatically
 
-| Method | When to use |
-|---|---|
-| **Learn from remote** | Press a button on your existing Gumax remote — the integration captures the Device ID automatically |
-| **Enter manually** | You already know the Device ID (e.g. from a previous setup) |
-
-4. Select the ESPHome node (auto-detected if the CC1101 bridge is online)
-5. Click **Submit**
+   There is no manual "enter a Device ID" option. The checksum each remote sends depends on a per-remote constant that can't be typed in or guessed — it has to be learned from a live signal (see [Calibration](#calibration) below).
+4. Calibrate the remote: press a button on channel **K1**, then **K2**, then **K9** when prompted. This takes a few seconds and only needs to be done once per remote.
+5. Choose a channel name prefix and click **Submit**
 
 Home Assistant will create **16 channel entities** (K1–K16) plus one **CC (broadcast) entity** for all channels simultaneously.
+
+---
+
+## Calibration
+
+Every physical Gumax remote bakes a device-specific constant into its checksum. It cannot be derived from the Device ID, so the integration learns it directly from three live captures (K1, K2, K9) during setup.
+
+After calibrating, the integration double-checks its own math and shows a pass/fail result. If a channel doesn't check out, that points to a bug in the integration rather than a problem with your remote — the screen will link straight to opening a GitHub issue. You'll also be offered the option to share your (anonymized) capture data in the project's [GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5), to help improve checksum support for other remotes. This is entirely optional and nothing is sent automatically.
+
+If you're upgrading from a version of this integration that predates calibration, your existing entries keep working unchanged. Home Assistant will show a **Repair** notice (Settings → Repairs) inviting you to recalibrate — click **Fix** and it walks you through the same K1/K2/K9 capture, in place.
 
 ---
 
@@ -156,7 +169,7 @@ This is useful if you want to transmit commands from another tool (e.g. ESPHome 
 
 ## Device ID
 
-The Device ID is a 32-bit hex value (e.g. `A1B2C3D4`) that identifies a remote. It cannot be read from a sticker — it must be captured from an existing remote using the **Learn** flow, or a new one can be created manually and then paired to the motor (see the motor's manual for pairing instructions).
+The Device ID is a 32-bit hex value (e.g. `A1B2C3D4`) that identifies a remote. It cannot be read from a sticker — it must be captured from an existing remote using the setup flow, which also calibrates the checksum for that remote (see [Calibration](#calibration)).
 
 If you have multiple remotes or systems, add the integration multiple times with a different Device ID for each.
 
@@ -244,7 +257,7 @@ remote_transmitter:
 
 Reflash the device and try sending a command from Home Assistant. If the shutter responds, the CC1101 was getting stuck switching between RX and TX mode.
 
-If you have no plans to add more remotes in the future, you can leave the receiver and the mode-switch callbacks commented out permanently. The receiver is only needed for the **Learn** flow to capture Device IDs — once all your remotes are configured, it serves no purpose.
+If you have no plans to add more remotes in the future, you can leave the receiver and the mode-switch callbacks commented out permanently. The receiver is only needed for the setup flow (Device ID capture + K1/K2/K9 calibration) and the diagnostic "Capture and analyse signal" option — once all your remotes are configured and calibrated, it serves no purpose. Keep it available if you might add or recalibrate a remote later.
 
 ---
 

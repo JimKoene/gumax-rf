@@ -63,11 +63,11 @@
       },
       "calibration_share": {
         "title": "Kalibratie gelukt",
-        "description": "**Validatie:**\n{verify_block}\n\nDe kalibratie is gelukt en wordt direct gebruikt.\n\nWil je ons helpen de checksum-berekening voor andere afstandsbedieningen te verbeteren? Kopieer onderstaand blok en plaats het in [deze GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). Dit is volledig optioneel — er wordt niets automatisch verstuurd, en dit blok bevat een code die je eigen apparaat kan aansturen, deel het dus alleen als je dat prima vindt.\n\n```\n{share_block}\n```\n\nKlik op Volgende om door te gaan."
+        "description": "**Validatie:**\n{verify_block}\n\nDe kalibratie is gelukt en wordt direct gebruikt.\n\nWil je ons helpen de checksum-berekening voor andere afstandsbedieningen te verbeteren? Kopieer onderstaand blok en plaats het in [deze GitHub Discussion]({discussion_url}). Dit is volledig optioneel — er wordt niets automatisch verstuurd, en dit blok bevat een code die je eigen apparaat kan aansturen, deel het dus alleen als je dat prima vindt.\n\n```\n{share_block}\n```\n\nKlik op Volgende om door te gaan."
       },
       "calibration_mismatch": {
         "title": "Kalibratie: onverwachte uitkomst",
-        "description": "**Validatie:**\n{verify_block}\n\nDe berekende kalibratie komt niet overeen met wat je afstandsbediening daadwerkelijk stuurde. Dat wijst op een bug in deze integratie, niet op een probleem met je afstandsbediening of je invoer.\n\nMeld dit alsjeblieft met onderstaand blok via [een nieuwe GitHub issue](https://github.com/JimKoene/gumax-rf/issues/new). De berekende kalibratie wordt ondertussen wel toegepast, zodat je apparaat blijft werken.\n\n```\n{share_block}\n```\n\nKlik op Volgende om door te gaan."
+        "description": "**Validatie:**\n{verify_block}\n\nDe berekende kalibratie komt niet overeen met wat je afstandsbediening daadwerkelijk stuurde. Dat wijst op een bug in deze integratie, niet op een probleem met je afstandsbediening of je invoer.\n\nMeld dit alsjeblieft met onderstaand blok via [een nieuwe GitHub issue]({issue_url}). De berekende kalibratie wordt ondertussen wel toegepast, zodat je apparaat blijft werken.\n\n```\n{share_block}\n```\n\nKlik op Volgende om door te gaan."
       },
       "reconfigure": {
         "title": "Gumax RF opnieuw configureren",
@@ -182,11 +182,11 @@
           },
           "calibration_share": {
             "title": "Kalibratie gelukt",
-            "description": "**Validatie:**\n{verify_block}\n\nDe kalibratie is gelukt en is direct toegepast op **{title}**.\n\nWil je ons helpen de checksum-berekening voor andere afstandsbedieningen te verbeteren? Kopieer onderstaand blok en plaats het in [deze GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). Dit is volledig optioneel — er wordt niets automatisch verstuurd, en dit blok bevat een code die je eigen apparaat kan aansturen, deel het dus alleen als je dat prima vindt.\n\n```\n{share_block}\n```\n\nKlik op Volgende om af te ronden."
+            "description": "**Validatie:**\n{verify_block}\n\nDe kalibratie is gelukt en is direct toegepast op **{title}**.\n\nWil je ons helpen de checksum-berekening voor andere afstandsbedieningen te verbeteren? Kopieer onderstaand blok en plaats het in [deze GitHub Discussion]({discussion_url}). Dit is volledig optioneel — er wordt niets automatisch verstuurd, en dit blok bevat een code die je eigen apparaat kan aansturen, deel het dus alleen als je dat prima vindt.\n\n```\n{share_block}\n```\n\nKlik op Volgende om af te ronden."
           },
           "calibration_mismatch": {
             "title": "Kalibratie: onverwachte uitkomst",
-            "description": "**Validatie:**\n{verify_block}\n\nDe berekende kalibratie komt niet overeen met wat je afstandsbediening daadwerkelijk stuurde. Dat wijst op een bug in deze integratie, niet op een probleem met je afstandsbediening of je invoer.\n\nMeld dit alsjeblieft met onderstaand blok via [een nieuwe GitHub issue](https://github.com/JimKoene/gumax-rf/issues/new). De berekende kalibratie wordt ondertussen wel toegepast op **{title}**, zodat je apparaat blijft werken.\n\n```\n{share_block}\n```\n\nKlik op Volgende om af te ronden."
+            "description": "**Validatie:**\n{verify_block}\n\nDe berekende kalibratie komt niet overeen met wat je afstandsbediening daadwerkelijk stuurde. Dat wijst op een bug in deze integratie, niet op een probleem met je afstandsbediening of je invoer.\n\nMeld dit alsjeblieft met onderstaand blok via [een nieuwe GitHub issue]({issue_url}). De berekende kalibratie wordt ondertussen wel toegepast op **{title}**, zodat je apparaat blijft werken.\n\n```\n{share_block}\n```\n\nKlik op Volgende om af te ronden."
           }
         }
       }

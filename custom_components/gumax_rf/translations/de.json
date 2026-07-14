@@ -63,11 +63,11 @@
       },
       "calibration_share": {
         "title": "Kalibrierung erfolgreich",
-        "description": "**Validierung:**\n{verify_block}\n\nDie Kalibrierung ist erfolgreich und wird sofort verwendet.\n\nMöchtest du uns helfen, die Checksummen-Berechnung für andere Fernbedienungen zu verbessern? Kopiere den Block unten und poste ihn in [dieser GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). Das ist völlig optional — es wird nichts automatisch gesendet, und dieser Block enthält einen Code, der dein eigenes Gerät steuern kann, teile ihn also nur, wenn du damit einverstanden bist.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um fortzufahren."
+        "description": "**Validierung:**\n{verify_block}\n\nDie Kalibrierung ist erfolgreich und wird sofort verwendet.\n\nMöchtest du uns helfen, die Checksummen-Berechnung für andere Fernbedienungen zu verbessern? Kopiere den Block unten und poste ihn in [dieser GitHub Discussion]({discussion_url}). Das ist völlig optional — es wird nichts automatisch gesendet, und dieser Block enthält einen Code, der dein eigenes Gerät steuern kann, teile ihn also nur, wenn du damit einverstanden bist.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um fortzufahren."
       },
       "calibration_mismatch": {
         "title": "Kalibrierung: unerwartetes Ergebnis",
-        "description": "**Validierung:**\n{verify_block}\n\nDie berechnete Kalibrierung stimmt nicht mit dem überein, was deine Fernbedienung tatsächlich gesendet hat. Das deutet auf einen Fehler in dieser Integration hin, nicht auf ein Problem mit deiner Fernbedienung oder deiner Eingabe.\n\nBitte melde dies mit dem Block unten über [ein neues GitHub-Issue](https://github.com/JimKoene/gumax-rf/issues/new). Die berechnete Kalibrierung wird währenddessen trotzdem angewendet, damit dein Gerät weiter funktioniert.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um fortzufahren."
+        "description": "**Validierung:**\n{verify_block}\n\nDie berechnete Kalibrierung stimmt nicht mit dem überein, was deine Fernbedienung tatsächlich gesendet hat. Das deutet auf einen Fehler in dieser Integration hin, nicht auf ein Problem mit deiner Fernbedienung oder deiner Eingabe.\n\nBitte melde dies mit dem Block unten über [ein neues GitHub-Issue]({issue_url}). Die berechnete Kalibrierung wird währenddessen trotzdem angewendet, damit dein Gerät weiter funktioniert.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um fortzufahren."
       },
       "reconfigure": {
         "title": "Gumax RF neu konfigurieren",
@@ -182,11 +182,11 @@
           },
           "calibration_share": {
             "title": "Kalibrierung erfolgreich",
-            "description": "**Validierung:**\n{verify_block}\n\nDie Kalibrierung ist erfolgreich und wurde auf **{title}** angewendet.\n\nMöchtest du uns helfen, die Checksummen-Berechnung für andere Fernbedienungen zu verbessern? Kopiere den Block unten und poste ihn in [dieser GitHub Discussion](https://github.com/JimKoene/gumax-rf/discussions/5). Das ist völlig optional — es wird nichts automatisch gesendet, und dieser Block enthält einen Code, der dein eigenes Gerät steuern kann, teile ihn also nur, wenn du damit einverstanden bist.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um abzuschließen."
+            "description": "**Validierung:**\n{verify_block}\n\nDie Kalibrierung ist erfolgreich und wurde auf **{title}** angewendet.\n\nMöchtest du uns helfen, die Checksummen-Berechnung für andere Fernbedienungen zu verbessern? Kopiere den Block unten und poste ihn in [dieser GitHub Discussion]({discussion_url}). Das ist völlig optional — es wird nichts automatisch gesendet, und dieser Block enthält einen Code, der dein eigenes Gerät steuern kann, teile ihn also nur, wenn du damit einverstanden bist.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um abzuschließen."
           },
           "calibration_mismatch": {
             "title": "Kalibrierung: unerwartetes Ergebnis",
-            "description": "**Validierung:**\n{verify_block}\n\nDie berechnete Kalibrierung stimmt nicht mit dem überein, was deine Fernbedienung tatsächlich gesendet hat. Das deutet auf einen Fehler in dieser Integration hin, nicht auf ein Problem mit deiner Fernbedienung oder deiner Eingabe.\n\nBitte melde dies mit dem Block unten über [ein neues GitHub-Issue](https://github.com/JimKoene/gumax-rf/issues/new). Die berechnete Kalibrierung wird währenddessen trotzdem auf **{title}** angewendet, damit dein Gerät weiter funktioniert.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um abzuschließen."
+            "description": "**Validierung:**\n{verify_block}\n\nDie berechnete Kalibrierung stimmt nicht mit dem überein, was deine Fernbedienung tatsächlich gesendet hat. Das deutet auf einen Fehler in dieser Integration hin, nicht auf ein Problem mit deiner Fernbedienung oder deiner Eingabe.\n\nBitte melde dies mit dem Block unten über [ein neues GitHub-Issue]({issue_url}). Die berechnete Kalibrierung wird währenddessen trotzdem auf **{title}** angewendet, damit dein Gerät weiter funktioniert.\n\n```\n{share_block}\n```\n\nKlicke auf Weiter, um abzuschließen."
           }
         }
       }

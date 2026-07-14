@@ -46,6 +46,11 @@ _POLL_INTERVAL = 1.0
 _CALIB_ORDER: tuple[str, ...] = ("capture_k1", "capture_k2", "capture_k9")
 _CALIB_CHANNELS: dict[str, int] = {"capture_k1": 1, "capture_k2": 2, "capture_k9": 9}
 
+# Passed as description placeholders rather than embedded in translation
+# strings — HACS's translation validator rejects literal URLs in strings.json.
+_DISCUSSION_URL = "https://github.com/JimKoene/gumax-rf/discussions/5"
+_ISSUE_URL = "https://github.com/JimKoene/gumax-rf/issues/new"
+
 
 class CalibrationFlowMixin:
     def _init_calibration_state(self) -> None:
@@ -207,6 +212,7 @@ class CalibrationFlowMixin:
             description_placeholders={
                 "verify_block": self._format_verify_block(),
                 "share_block": self._format_share_block(),
+                "discussion_url": _DISCUSSION_URL,
                 **self._extra_share_placeholders(),
             },
         )
@@ -222,6 +228,7 @@ class CalibrationFlowMixin:
             description_placeholders={
                 "verify_block": self._format_verify_block(),
                 "share_block": self._format_share_block(),
+                "issue_url": _ISSUE_URL,
                 **self._extra_share_placeholders(),
             },
         )

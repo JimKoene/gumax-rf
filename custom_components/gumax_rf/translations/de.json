@@ -153,9 +153,12 @@
   "issues": {
     "legacy_checksum": {
       "title": "Gumax RF: Kalibrierung fehlt für {title}",
-      "description": "Diese Integration verwendete früher eine einzige Checksummen-Formel für alle Fernbedienungen — die stimmt nicht für jedes Gerät. **{title}** wurde noch nicht kalibriert.\n\nKlicke unten auf 'Reparieren', um die Kalibrierungsschritte (K1, K2, K9 erfassen) durchzuführen. Bis dahin verwendet diese Integration weiterhin die alte Formel.",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Kalibrierung starten",
+            "description": "Diese Integration verwendete früher eine einzige Checksummen-Formel für alle Fernbedienungen — die stimmt nicht für jedes Gerät. **{title}** wurde noch nicht kalibriert.\n\nKlicke auf Weiter, um die Kalibrierungsschritte (K1, K2, K9 erfassen) durchzuführen. Bis dahin verwendet diese Integration weiterhin die alte Formel."
+          },
           "capture_k1": {
             "title": "Kalibrierung: Kanal K1",
             "description": "Klicke auf Weiter und drücke danach eine beliebige Taste von **Kanal 1 (K1)** auf deiner Fernbedienung. Du hast 10 Sekunden.\n\n{progress}"

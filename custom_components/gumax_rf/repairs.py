@@ -7,6 +7,7 @@ config entry, so the user doesn't have to separately find Reconfigure.
 
 from __future__ import annotations
 
+import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -23,7 +24,16 @@ class GumaxRfLegacyChecksumRepairFlow(CalibrationFlowMixin, RepairsFlow):
         self._init_calibration_state()
 
     async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
-        return await self.async_step_capture_k1(user_input)
+        # Fixable issues can't have a top-level "description" in strings.json
+        # (mutually exclusive with fix_flow in HA's translation schema), so
+        # the explanation that used to live there is shown here instead.
+        if user_input is not None:
+            return await self.async_step_capture_k1()
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({}),
+            description_placeholders={"title": self._entry.title},
+        )
 
     def async_remove(self) -> None:
         self._cleanup_calib_listener()

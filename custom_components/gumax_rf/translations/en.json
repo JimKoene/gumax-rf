@@ -153,9 +153,12 @@
   "issues": {
     "legacy_checksum": {
       "title": "Gumax RF: calibration missing for {title}",
-      "description": "This integration used to apply one checksum formula to every remote — that formula is not correct for every device. **{title}** has not been calibrated yet.\n\nClick 'Fix' below to run the calibration steps (capturing K1, K2, K9). Until then, this integration keeps using the old formula.",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Start calibration",
+            "description": "This integration used to apply one checksum formula to every remote — that formula is not correct for every device. **{title}** has not been calibrated yet.\n\nClick Next to run the calibration steps (capturing K1, K2, K9). Until then, this integration keeps using the old formula."
+          },
           "capture_k1": {
             "title": "Calibration: channel K1",
             "description": "Click Next, then press any button on **channel 1 (K1)** of your remote. You have 10 seconds.\n\n{progress}"

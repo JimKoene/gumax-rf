@@ -153,9 +153,12 @@
   "issues": {
     "legacy_checksum": {
       "title": "Gumax RF: kalibratie ontbreekt voor {title}",
-      "description": "Deze integratie gebruikte voorheen één checksumformule voor alle afstandsbedieningen — die klopt niet voor elk toestel. **{title}** is nog niet gekalibreerd.\n\nKlik op 'Repareren' hieronder om de kalibratiestappen (K1, K2, K9 capturen) te doorlopen. Tot die tijd blijft deze integratie de oude formule gebruiken.",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Kalibratie starten",
+            "description": "Deze integratie gebruikte voorheen één checksumformule voor alle afstandsbedieningen — die klopt niet voor elk toestel. **{title}** is nog niet gekalibreerd.\n\nKlik op Volgende om de kalibratiestappen (K1, K2, K9 capturen) te doorlopen. Tot die tijd blijft deze integratie de oude formule gebruiken."
+          },
           "capture_k1": {
             "title": "Kalibratie: kanaal K1",
             "description": "Klik op Volgende en druk daarna op een willekeurige knop van **kanaal 1 (K1)** op je afstandsbediening. Je hebt 10 seconden.\n\n{progress}"

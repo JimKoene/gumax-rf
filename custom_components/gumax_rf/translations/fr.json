@@ -153,9 +153,12 @@
   "issues": {
     "legacy_checksum": {
       "title": "Gumax RF : calibration manquante pour {title}",
-      "description": "Cette intégration appliquait auparavant une seule formule de somme de contrôle à toutes les télécommandes — cette formule n'est pas correcte pour chaque appareil. **{title}** n'a pas encore été calibré.\n\nCliquez sur « Réparer » ci-dessous pour effectuer les étapes de calibration (capture de K1, K2, K9). D'ici là, cette intégration continue d'utiliser l'ancienne formule.",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Démarrer la calibration",
+            "description": "Cette intégration appliquait auparavant une seule formule de somme de contrôle à toutes les télécommandes — cette formule n'est pas correcte pour chaque appareil. **{title}** n'a pas encore été calibré.\n\nCliquez sur Suivant pour effectuer les étapes de calibration (capture de K1, K2, K9). D'ici là, cette intégration continue d'utiliser l'ancienne formule."
+          },
           "capture_k1": {
             "title": "Calibration : canal K1",
             "description": "Cliquez sur Suivant, puis appuyez sur n'importe quel bouton du **canal 1 (K1)** de votre télécommande. Vous avez 10 secondes.\n\n{progress}"

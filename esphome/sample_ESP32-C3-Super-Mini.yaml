@@ -1,6 +1,12 @@
-# ESPHome configuration for Gumax RF bridge (ESP32 + CC1101, 433.92 MHz OOK)
+# WARNING: this is a SAMPLE file, provided as-is with no guarantee it will
+# work unmodified on your specific board or setup. Always verify the pin
+# layout below against your own hardware before flashing — wiring the CC1101
+# or ESP incorrectly can damage the module or the board.
 #
-# Built and tested with: ESP32 DevKit v1 + CC1101 433 MHz RF module
+# ESPHome bridge for Gumax RF (433.92 MHz OOK)
+# Fully optimized for the Nologo ESP32-C3 Super Mini
+#
+# Built and tested with: Nologo ESP32-C3 Super Mini + CC1101 433 MHz RF module
 #
 # CC1101 Pin layout - Top view:
 #   ----------------------------------------------
@@ -18,29 +24,29 @@
 #   7 - MISO   - SPI Master In, Slave Out
 #   8 - GDO2   - Module OUT
 #
-# Wiring (ESP32 DevKit ↔ CC1101):
-#   3 - GDO0   → GPIO26  (transmit data)
-#   4 - CSN    → GPIO5
-#   5 - SCK    → GPIO18
-#   6 - MOSI   → GPIO23
-#   7 - MISO   → GPIO19
-#   8 - GDO2   → GPIO25  (receive data)
+# Wiring (ESP32-C3 Super Mini ↔ CC1101):
+#   3 - GDO0   → GPIO1   (transmit data)
+#   4 - CSN    → GPIO7
+#   5 - SCK    → GPIO4
+#   6 - MOSI   → GPIO10
+#   7 - MISO   → GPIO3
+#   8 - GDO2   → GPIO2   (receive data)
 #
-# Flash: esphome run gumax_rf_bridge.yaml
+# Flash: esphome run sample_ESP32-C3-Super-Mini.yaml
 
 esphome:
-  name: gumax-rf
-  friendly_name: Gumax RF Controller
+  name: gumax-rf-mini-test
+  friendly_name: Gumax RF Controller Mini Test
+  min_version: 2026.4.0
+  name_add_mac_suffix: false
 
 esp32:
-  board: esp32dev
+  board: nologo_esp32c3_super_mini   # Works perfectly on up-to-date systems!
   framework:
-    type: esp-idf
+    type: arduino
 
-# Enable logging, defaults to DEBUG
 logger:
 
-# Enable Home Assistant API
 api:
   encryption:
     key: !secret gumax_api_key
@@ -64,56 +70,70 @@ api:
               return timings;
             carrier_frequency: 0Hz
 
-
 ota:
   - platform: esphome
     password: !secret gumax_ota_password
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  min_auth_mode: WPA2
+  networks:
+    - ssid: !secret wifi_ssid
+      password: !secret wifi_password
+  power_save_mode: HIGH
+  fast_connect: True
   ap:
     ssid: "Gumax-Rf Fallback Hotspot"
     password: !secret gumax_ap_password
 
 captive_portal:
 
-spi:
-  clk_pin: GPIO18
-  mosi_pin: GPIO23
-  miso_pin: GPIO19
+esp32_ble:
+  enable_on_boot: false
 
+# Physical hardware SPI bus settings for the C3 Mini
+spi:
+  clk_pin: GPIO4
+  mosi_pin: GPIO10
+  miso_pin: GPIO3
+  interface: hardware
+
+# Official built-in CC1101 component from ESPHome
 cc1101:
   id: cc1101_chip
-  cs_pin: GPIO5
+  cs_pin: GPIO7
   frequency: 433.92MHz
   output_power: 10
 
+# Transmit via CC1101 GDO0 (connected to ESP GPIO1)
 remote_transmitter:
   id: rf_tx
-  internal: true
   pin:
-    number: GPIO26
+    number: GPIO1     # Avoids timing conflicts on the C3 hardware matrix
   carrier_duty_percent: 100%
   non_blocking: false
-  
+
   on_transmit:
     then:
+      - logger.log: "CC1101 switching to TX"
       - cc1101.begin_tx: cc1101_chip
   on_complete:
     then:
+      - logger.log: "CC1101 switching to RX"
+      - delay: 20ms
       - cc1101.begin_rx: cc1101_chip
 
+# Receive via CC1101 GDO2 (connected to ESP GPIO2)
 remote_receiver:
   id: rf_rx
-  pin: 
-    number: GPIO25
+  pin:
+    number: GPIO2
+    mode:
+      input: true
+      pullup: true    # Filters electronic noise from the mini's regulator
   tolerance: 35%
   filter: 20us
   idle: 20ms
-#  dump: raw 
+#  dump: raw # For debugging
   on_raw:
     then:
       - homeassistant.event:
@@ -127,23 +147,33 @@ remote_receiver:
               }
               return s;
 
-# Diagnostic sensors — exposes device health info to Home Assistant
-sensor:
-  - platform: uptime
-    name: Uptime
-  - platform: wifi_signal
-    name: "Wi-Fi Signal"
-    update_interval: 60s
-
-text_sensor:
-  - platform: wifi_info
-    ip_address:
-      name: "IP Address"
-    ssid:
-      name: "Wi-Fi SSID"
-    bssid:
-      name: "Wi-Fi BSSID"
+infrared:
+  - platform: ir_rf_proxy
+    name: "RF Proxy Transmitter"
+    id: rf_proxy_tx
+    remote_transmitter_id: rf_tx
+    frequency: 433.92MHz
 
 switch:
   - platform: restart
     name: "Restart"
+
+sensor:
+  - platform: uptime
+    id: uptime_s
+    name: "Uptime"
+    update_interval: 60s
+  - platform: wifi_signal
+    id: wifi_rssi
+    name: "WiFi RSSI"
+    update_interval: 30s
+
+binary_sensor:
+  - platform: status
+    name: "Online"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      id: wifi_ip
+      name: "IP Address"

@@ -65,16 +65,18 @@ esphome generate-api-key
 
 ## Step 3 — Flash the ESP32 with ESPHome
 
-Copy `esphome/gumax_rf_bridge.yaml` to your ESPHome configuration directory.
+> **Note:** The YAML files under `esphome/` are **samples**, provided as-is with no guarantee they work unmodified on your specific board or setup. Always verify the pin layout against your own hardware before flashing — wiring the CC1101 or ESP incorrectly can damage the module or the board.
+
+Copy `esphome/sample_ESP32-32D.yaml` to your ESPHome configuration directory.
 
 Flash the firmware via USB:
 ```bash
-esphome run esphome/gumax_rf_bridge.yaml
+esphome run esphome/sample_ESP32-32D.yaml
 ```
 
 Or via the ESPHome add-on in Home Assistant:
 1. Go to **ESPHome** → click **+ New device**
-2. Import `gumax_rf_bridge.yaml` or paste the contents manually
+2. Import `sample_ESP32-32D.yaml` or paste the contents manually
 3. Click **Install** → **Plug into this computer**
 
 After flashing, the ESP32 automatically connects to your Wi-Fi. Check the logs — you should see `[I] (esphome)` messages without errors.

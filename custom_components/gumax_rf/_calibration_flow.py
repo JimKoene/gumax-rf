@@ -11,7 +11,8 @@ self._init_calibration_state(). It must also implement
 async def _finish_calibration(self, calibration: dict) -> FlowResult,
 called once all three channels are captured and calibration is computed —
 calibration has CONF_X_DEV/CONF_K1_EXTRA/CONF_K9_EXTRA/CONF_B9_DEFAULT/
-CONF_B9_K1/CONF_B9_K9 keys, ready to merge into a config entry's data.
+CONF_B9_K1/CONF_B9_K9/CONF_CHANNEL_FLAG keys, ready to merge into a config
+entry's data.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from .const import (
     CONF_B9_DEFAULT,
     CONF_B9_K1,
     CONF_B9_K9,
+    CONF_CHANNEL_FLAG,
     CONF_K1_EXTRA,
     CONF_K9_EXTRA,
     CONF_X_DEV,
@@ -159,11 +161,19 @@ class CalibrationFlowMixin:
     async def async_step_calibration_done(self, user_input: dict | None = None):
         k1, k2, k9 = self._calib_data[1], self._calib_data[2], self._calib_data[9]
 
+        # channel_flag (see DeviceProfile) is a per-remote constant some
+        # models OR into b5 on every channel; decode_signal() already
+        # detected it per capture (0 for remotes that don't set it). Fold
+        # each capture's own flag into its b5 before inferring x_dev so the
+        # checksum math sees the bytes actually transmitted.
         b5, b6, b7 = channel_bytes(2, k2["command"])
+        b5 |= k2.get("channel_flag", 0)
         x_dev = infer_x_dev(b5 + b6 + b7, k2["checksum"])
         b5, b6, b7 = channel_bytes(1, k1["command"])
+        b5 |= k1.get("channel_flag", 0)
         k1_extra = infer_x_dev(b5 + b6 + b7, k1["checksum"], hint=x_dev) - x_dev
         b5, b6, b7 = channel_bytes(9, k9["command"])
+        b5 |= k9.get("channel_flag", 0)
         k9_extra = infer_x_dev(b5 + b6 + b7, k9["checksum"], hint=x_dev) - x_dev
 
         self._calib_result = {
@@ -173,6 +183,7 @@ class CalibrationFlowMixin:
             CONF_B9_DEFAULT: k2["b9"],
             CONF_B9_K1: k1["b9"],
             CONF_B9_K9: k9["b9"],
+            CONF_CHANNEL_FLAG: k2.get("channel_flag", 0),
         }
 
         # Sanity check: re-encode each captured channel with the calibration

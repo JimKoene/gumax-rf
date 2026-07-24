@@ -209,6 +209,100 @@ def test_b8_and_b9_against_local_captures():
             assert _bits(pulses)[64] == expected_b9, f"{remote['label']} CC {command} b9"
 
 
+# ── channel_flag — zonnescherm (awning) remotes OR an extra 0x80 into b5 ────
+
+def test_encode_applies_channel_flag_to_b5():
+    """DeviceProfile.channel_flag must be OR'd into b5 on every channel, and
+    feed into the checksum sum like any other part of b5 — this is what
+    lets zonnescherm remotes (which set this bit) be re-encoded exactly."""
+    plain = DeviceProfile(x_dev=0x71)
+    flagged = DeviceProfile(x_dev=0x71, channel_flag=0x80)
+
+    b5_plain = _byte(encode(2, "up", DEVICE_ID_DEFAULT, plain), 32)
+    b5_flagged = _byte(encode(2, "up", DEVICE_ID_DEFAULT, flagged), 32)
+    assert b5_plain == 0x01  # canonical K2 high byte
+    assert b5_flagged == 0x81  # same, with the flag bit OR'd in
+
+    b8_plain = _byte(encode(2, "up", DEVICE_ID_DEFAULT, plain), 56)
+    b8_flagged = _byte(encode(2, "up", DEVICE_ID_DEFAULT, flagged), 56)
+    assert b8_flagged == (b8_plain + 0x80) % 256  # flag bit feeds the checksum sum
+
+
+def test_b8_and_b9_against_local_zonnescherm_captures():
+    """Full K1+K2+K9 calibration + round-trip, using real zonnescherm-remote
+    raw captures kept out of the public repo — see raw_captures.py's
+    docstring. Skipped without that (gitignored) file. This exercises the
+    exact bug this fix addresses: decode_signal() failing to recognize
+    K1/K2/K9 on this remote model, which stalled the calibration wizard."""
+    try:
+        from .raw_captures import RAW_CAPTURES
+    except ImportError:
+        pytest.skip("rf_protocols/tests/raw_captures.py not present locally")
+
+    import sys
+    from pathlib import Path
+
+    ha_component = Path(__file__).resolve().parents[2] / "custom_components" / "gumax_rf"
+    sys.path.insert(0, str(ha_component))
+    from _protocol import DeviceProfile as HADeviceProfile
+    from _protocol import channel_bytes as ha_channel_bytes
+    from _protocol import decode_signal, device_id_from_hex
+    from _protocol import encode as ha_encode
+    from _protocol import infer_x_dev as ha_infer_x_dev
+
+    zonnescherm_labels = [
+        label for label in RAW_CAPTURES if label.startswith("zonnescherm")
+    ]
+    if not zonnescherm_labels:
+        pytest.skip("no zonnescherm-labelled entries in raw_captures.py")
+
+    for label in zonnescherm_labels:
+        entries = RAW_CAPTURES[label]
+        channels_present = {ch for ch, _cmd in entries}
+        if not {1, 2, 9} <= channels_present:
+            continue  # e.g. zonnescherm1 only has K1 — not a full triplet
+
+        signals = {}
+        for (ch, cmd), raw in entries.items():
+            pulses = [int(x) for x in raw.split(",")]
+            sig = decode_signal(pulses)
+            assert sig is not None, f"{label} K{ch}/{cmd} failed to decode"
+            assert sig["channel"] == ch, f"{label} K{ch}/{cmd} channel mismatch"
+            assert sig["channel_flag"] == 0x80, f"{label} K{ch}/{cmd} expected channel_flag 0x80"
+            signals[ch] = sig
+
+        k1, k2, k9 = signals[1], signals[2], signals[9]
+        device_id_hex = k2["device_id"]
+
+        b5, b6, b7 = ha_channel_bytes(2, k2["command"])
+        b5 |= k2["channel_flag"]
+        x_dev = ha_infer_x_dev(b5 + b6 + b7, k2["checksum"])
+        b5, b6, b7 = ha_channel_bytes(1, k1["command"])
+        b5 |= k1["channel_flag"]
+        k1_extra = ha_infer_x_dev(b5 + b6 + b7, k1["checksum"], hint=x_dev) - x_dev
+        b5, b6, b7 = ha_channel_bytes(9, k9["command"])
+        b5 |= k9["channel_flag"]
+        k9_extra = ha_infer_x_dev(b5 + b6 + b7, k9["checksum"], hint=x_dev) - x_dev
+
+        profile = HADeviceProfile(
+            x_dev=x_dev,
+            k1_extra=k1_extra,
+            k9_extra=k9_extra,
+            b9_default=k2["b9"],
+            b9_k1=k1["b9"],
+            b9_k9=k9["b9"],
+            channel_flag=k2["channel_flag"],
+        )
+        device_id_bin = device_id_from_hex(device_id_hex)
+        for ch in (1, 2, 9):
+            sig = signals[ch]
+            ref_pulses = ha_encode(ch, sig["command"], device_id_bin, profile)
+            ref_signal = decode_signal(ref_pulses)
+            assert ref_signal is not None, f"{label} K{ch} re-encode failed to decode"
+            assert ref_signal["checksum"] == sig["checksum"], f"{label} K{ch} re-encode checksum mismatch"
+            assert ref_signal["b9"] == sig["b9"], f"{label} K{ch} re-encode b9 mismatch"
+
+
 # ── infer_x_dev — inverts the formula used to calibrate a new remote ─────────
 # Synthetic values on purpose (not tied to any real remote) — infer_x_dev is
 # pure math, it doesn't need real capture data to be exercised correctly.

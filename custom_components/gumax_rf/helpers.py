@@ -8,6 +8,7 @@ from .const import (
     CONF_B9_DEFAULT,
     CONF_B9_K1,
     CONF_B9_K9,
+    CONF_CHANNEL_FLAG,
     CONF_DEVICE_ID,
     CONF_ESPHOME_NODE,
     CONF_K1_EXTRA,
@@ -41,4 +42,5 @@ def device_profile_for_entry(entry: ConfigEntry) -> DeviceProfile:
         b9_default=data.get(CONF_B9_DEFAULT, 1),
         b9_k1=data.get(CONF_B9_K1, 1),
         b9_k9=data.get(CONF_B9_K9, 1),
+        channel_flag=data.get(CONF_CHANNEL_FLAG, 0),
     )

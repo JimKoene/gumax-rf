@@ -40,6 +40,11 @@ class DeviceProfile:
     b9 (the final bit of the packet) has no known formula. b9_k1/b9_k9 hold
     the directly observed values for those two channels; b9_default is used
     for every other channel, including CC.
+
+    channel_flag is an extra constant (0 or 0x80) some remote models OR into
+    b5 on every channel, on top of the canonical per-channel value from
+    channel_bytes(). Discovered on zonnescherm (awning) remotes, which set it
+    on K1/K2/K9 alike; rolluik remotes observed so far all have it as 0.
     """
 
     x_dev: int
@@ -48,6 +53,7 @@ class DeviceProfile:
     b9_default: int = 1
     b9_k1: int = 1
     b9_k9: int = 1
+    channel_flag: int = 0
 
 
 # Reproduces the original (pre-calibration) formula, which was hardcoded to a
@@ -125,6 +131,7 @@ def encode(channel: int, command: str, device_id: str, profile: DeviceProfile) -
         raise ValueError("device_id must be a 32-character binary string")
 
     b5, b6, b7 = channel_bytes(channel, command)
+    b5 |= profile.channel_flag
     if channel == 1:
         x_dev, b9 = profile.x_dev + profile.k1_extra, profile.b9_k1
     elif channel == 9:
@@ -206,12 +213,18 @@ def decode_signal(pulses: list[int], profile: DeviceProfile | None = None) -> di
     """Decode a full RF capture into device_id, channel, command, checksum and b9.
 
     Returns a dict with device_id (8-char hex), channel (1-16 or "CC"),
-    command ("up"/"down"/"stop"), checksum (b8), b9, and — only when a
-    DeviceProfile is supplied — checksum_valid/encode_match against that
-    profile's formula. Without a profile (e.g. during initial calibration,
-    before x_dev is known) checksum_valid/encode_match are None.
+    command ("up"/"down"/"stop"), checksum (b8), b9, channel_flag, and —
+    only when a DeviceProfile is supplied — checksum_valid/encode_match
+    against that profile's formula. Without a profile (e.g. during initial
+    calibration, before x_dev is known) checksum_valid/encode_match are None.
     Returns None when no sync pulse, fewer than 65 data bits, or the channel
     or command byte does not match any known value.
+
+    channel_flag is 0 for a direct channel-table match. Some remote models
+    (see DeviceProfile.channel_flag) OR an extra 0x80 into b5 on every
+    channel; if the direct match fails, this also tries the channel table
+    with that bit masked out, and reports the bit that had to be masked as
+    channel_flag so the caller (the calibration flow) can persist it.
     """
     bits = _extract_bits(pulses)
     if not bits or len(bits) < 65:
@@ -221,7 +234,16 @@ def decode_signal(pulses: list[int], profile: DeviceProfile | None = None) -> di
     b6 = int("".join(bits[40:48]), 2)
     b7 = int("".join(bits[48:56]), 2)
     cv = (b5 << 8) | b6
-    channel: int | str | None = "CC" if cv == 0x7FFF else _CH_VALS_REVERSE.get(cv)
+    channel: int | str | None
+    channel_flag = 0
+    if cv == 0x7FFF:
+        channel = "CC"
+    elif cv in _CH_VALS_REVERSE:
+        channel = _CH_VALS_REVERSE[cv]
+    else:
+        channel = _CH_VALS_REVERSE.get(((b5 & 0x7F) << 8) | b6)
+        if channel is not None:
+            channel_flag = b5 & 0x80
     command: str | None = _CMD_B7_REVERSE.get(b7 & 0x7F)
     if channel is None or command is None:
         return None
@@ -234,6 +256,7 @@ def decode_signal(pulses: list[int], profile: DeviceProfile | None = None) -> di
         "command": command,
         "checksum": b8,
         "b9": b9,
+        "channel_flag": channel_flag,
         "checksum_valid": None,
         "encode_match": None,
     }

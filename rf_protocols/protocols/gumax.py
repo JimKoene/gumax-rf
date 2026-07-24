@@ -57,6 +57,11 @@ class DeviceProfile:
     b9 (the final bit of the packet) has no known formula. b9_k1/b9_k9 hold
     the directly observed values for those two channels; b9_default is used
     for every other channel, including CC.
+
+    channel_flag is an extra constant (0 or 0x80) some remote models OR into
+    b5 on every channel, on top of the canonical per-channel value from
+    channel_bytes(). Discovered on zonnescherm (awning) remotes, which set it
+    on K1/K2/K9 alike; rolluik remotes observed so far all have it as 0.
     """
 
     x_dev: int
@@ -65,6 +70,7 @@ class DeviceProfile:
     b9_default: int = 1
     b9_k1: int = 1
     b9_k9: int = 1
+    channel_flag: int = 0
 
 
 def _wrap(total: int) -> int:
@@ -151,6 +157,7 @@ def encode(
         raise ValueError("device_id must be a 32-character binary string")
 
     b5, b6, b7 = channel_bytes(channel, command)
+    b5 |= profile.channel_flag
     if channel == 1:
         x_dev, b9 = profile.x_dev + profile.k1_extra, profile.b9_k1
     elif channel == 9:

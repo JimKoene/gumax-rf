@@ -12,6 +12,7 @@ CONF_K9_EXTRA = "k9_extra"
 CONF_B9_DEFAULT = "b9_default"
 CONF_B9_K1 = "b9_k1"
 CONF_B9_K9 = "b9_k9"
+CONF_CHANNEL_FLAG = "channel_flag"
 
 DEFAULT_CHANNEL_PREFIX = "C"
 MAX_PREFIX_LENGTH = 12

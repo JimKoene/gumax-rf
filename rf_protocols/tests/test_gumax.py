@@ -223,9 +223,15 @@ def test_encode_applies_channel_flag_to_b5():
     assert b5_plain == 0x01  # canonical K2 high byte
     assert b5_flagged == 0x81  # same, with the flag bit OR'd in
 
+    # b8 = (x_dev + b5 + b6 + b7) % 256 | 0x80 (see _wrap) — the top bit is
+    # always forced on, so "+0x80 to the sum" doesn't always mean "+0x80 to
+    # the result": here both totals (119 and 247) already fold to the same
+    # 0xF7 once the top bit is forced. Concrete values, not a shortcut
+    # formula, because the forcing makes that shortcut unreliable.
     b8_plain = _byte(encode(2, "up", DEVICE_ID_DEFAULT, plain), 56)
     b8_flagged = _byte(encode(2, "up", DEVICE_ID_DEFAULT, flagged), 56)
-    assert b8_flagged == (b8_plain + 0x80) % 256  # flag bit feeds the checksum sum
+    assert b8_plain == 0xF7
+    assert b8_flagged == 0xF7
 
 
 def test_b8_and_b9_against_local_zonnescherm_captures():
@@ -302,16 +308,44 @@ def test_b8_and_b9_against_local_zonnescherm_captures():
             assert ref_signal["checksum"] == sig["checksum"], f"{label} K{ch} re-encode checksum mismatch"
             assert ref_signal["b9"] == sig["b9"], f"{label} K{ch} re-encode b9 mismatch"
 
+        # Every other captured (channel, command) for this remote — e.g.
+        # zonnescherm2's K1 "down" (K1 "up" was the one folded into
+        # signals[1]/the triplet above — entries.items() keeps insertion
+        # order, and "down" was added after "up") and both CC directions,
+        # captured in a follow-up debugging session for a live "K1/CC don't
+        # work" report — must also decode cleanly against the profile
+        # derived above from K1/K2/K9 alone. This is what actually exercises
+        # encode_cc()'s channel_flag support and decode_signal()'s
+        # CC-with-flag (cv=0xFFFF) detection, neither of which the
+        # K1/K2/K9 triplet above touches.
+        used_keys = {(1, k1["command"]), (2, k2["command"]), (9, k9["command"])}
+        for (channel, command), raw in entries.items():
+            if (channel, command) in used_keys:
+                continue
+            pulses = [int(x) for x in raw.split(",")]
+            sig = decode_signal(pulses, profile=profile)
+            assert sig is not None, f"{label} {channel}/{command} failed to decode"
+            assert sig["channel"] == channel, f"{label} {channel}/{command} channel mismatch"
+            assert sig["command"] == command, f"{label} {channel}/{command} command mismatch"
+            assert sig["checksum_valid"], f"{label} {channel}/{command} checksum_valid False"
+            assert sig["encode_match"], f"{label} {channel}/{command} encode_match False"
+
 
 # ── infer_x_dev — inverts the formula used to calibrate a new remote ─────────
 # Synthetic values on purpose (not tied to any real remote) — infer_x_dev is
 # pure math, it doesn't need real capture data to be exercised correctly.
 
 def test_infer_x_dev_round_trip_normal_channel():
+    """Without a hint, infer_x_dev's answer is a heuristic, not a proof (see
+    its docstring): the corrected checksum formula's forced top bit makes
+    single-checksum inversion genuinely ambiguous for some x_dev values, and
+    0x2A happens to land on one where the no-hint default guess isn't the
+    value that was actually encoded. Passing hint=x_dev — exactly like the
+    real calibration flow does for K1/K9 — resolves it correctly."""
     b5, b6, b7 = channel_bytes(7, "down")
     synthetic_x_dev = 0x2A
     checksum = _byte(encode(7, "down", DEVICE_ID_DEFAULT, DeviceProfile(x_dev=synthetic_x_dev)), 56)
-    assert infer_x_dev(b5 + b6 + b7, checksum) == synthetic_x_dev
+    assert infer_x_dev(b5 + b6 + b7, checksum, hint=synthetic_x_dev) == synthetic_x_dev
 
 
 def test_infer_x_dev_round_trip_k1_includes_extra():

@@ -41,10 +41,13 @@ class DeviceProfile:
     the directly observed values for those two channels; b9_default is used
     for every other channel, including CC.
 
-    channel_flag is an extra constant (0 or 0x80) some remote models OR into
-    b5 on every channel, on top of the canonical per-channel value from
-    channel_bytes(). Discovered on zonnescherm (awning) remotes, which set it
-    on K1/K2/K9 alike; rolluik remotes observed so far all have it as 0.
+    channel_flag is an extra constant (0 or 0x80) some individual remotes OR
+    into b5 on every channel — CC included — on top of the canonical
+    per-channel value from channel_bytes(). All real remotes captured so far
+    are the same awning ("zonnescherm") product; the flag is not tied to
+    product line or model — some units of that same product set it, others
+    don't — so like x_dev, it must be learned per remote via the
+    calibration flow, never assumed from the model.
     """
 
     x_dev: int
@@ -66,7 +69,19 @@ LEGACY_PROFILE = DeviceProfile(
 
 
 def _wrap(total: int) -> int:
-    return (total % 256) ^ 0x80 if total >= 256 else total
+    """Fold the checksum sum to a byte with the top bit always set.
+
+    Previously this only forced the top bit on overflow (XOR 0x80 when
+    total >= 256), which happened to match every REMOTE_1 (x_dev=0xD4)
+    capture because 0xD4's top bit is already set, so any overflow landed on
+    a (total % 256) that also already had it set — XOR and OR were
+    indistinguishable there. A zonnescherm remote with a lower x_dev
+    (0x71) exposed the difference: for K1 "down" and CC "up", the real
+    checksum keeps the top bit set even though the old XOR would have
+    flipped it off. Unconditional OR matches every known real capture,
+    REMOTE_1's included.
+    """
+    return (total % 256) | 0x80
 
 
 def _checksum(x_dev: int, b5: int, b6: int, b7: int, *, include_b5: bool = True) -> int:
@@ -80,22 +95,27 @@ def infer_x_dev(known_sum: int, checksum: int, hint: int | None = None) -> int:
     additive constant that produced it — x_dev itself for a normal channel,
     or x_dev+k1_extra / x_dev+k9_extra for a K1/K9 capture.
 
-    The equation can have more than one valid solution in [0, 255] (the wrap
-    can plausibly have triggered or not) — this happens more often for K1,
-    whose channel bit makes known_sum large. Without a hint, the no-overflow
-    solution is preferred (right for deriving x_dev itself from a "normal"
-    channel like K2). When deriving a K1/K9 extra on top of an already-known
-    x_dev, pass hint=x_dev so the candidate closest to it — i.e. the smallest
-    extra — is chosen; real remotes only ever add a small correction there.
+    b8's top bit is always forced set (see _wrap), which makes this
+    genuinely non-invertible from a single checksum: (total % 256) could be
+    either checksum itself (top bit was already naturally set) or
+    checksum & 0x7F (top bit got forced on) — two candidates 128 apart —
+    and total could be either of those plus any multiple of 256 on top.
+    Without a hint, this tries (checksum, no overflow) first; that
+    convention has matched every real remote calibrated so far, but it's a
+    heuristic, not a proof — genuine disambiguation needs either a hint
+    from an already-known-good channel (K1/K9 below always pass
+    hint=x_dev, so the candidate closest to it — i.e. the smallest
+    correction — is chosen; real remotes only ever add a small correction
+    there) or an independent cross-check like the calibration flow's
+    re-encode sanity check.
     """
     candidates: list[int] = []
-    candidate = checksum - known_sum
-    if 0 <= candidate <= 255:
-        candidates.append(candidate)
-    for overflow_count in (1, 2, 3):
-        candidate = 256 * overflow_count + (checksum ^ 0x80) - known_sum
-        if 0 <= candidate <= 255 and candidate not in candidates:
-            candidates.append(candidate)
+    for overflow_count in (0, 1, 2, 3):
+        for mod_value in (checksum, checksum & 0x7F):
+            total = 256 * overflow_count + mod_value
+            candidate = total - known_sum
+            if 0 <= candidate <= 255 and candidate not in candidates:
+                candidates.append(candidate)
     if not candidates:
         raise ValueError("could not infer x_dev from checksum/sum pair")
     if hint is None or len(candidates) == 1:
@@ -157,17 +177,21 @@ def device_id_from_hex(hex_str: str) -> str:
 
 
 def encode_cc(command: str, device_id: str, profile: DeviceProfile) -> list[int]:
+    """profile.channel_flag is still OR'd into the on-wire b5 byte here
+    (zonnescherm remotes set it on every frame, CC included) even though b5
+    is excluded from the checksum sum for CC, same as the rest of b5."""
     if command not in _CMD_B7:
         raise ValueError(f"command must be 'up', 'down', or 'stop', got {command!r}")
     if len(device_id) != 32 or not all(c in "01" for c in device_id):
         raise ValueError("device_id must be a 32-character binary string")
 
+    b5 = 0x7F | profile.channel_flag
     b7 = _CMD_B7[command] | 0x80
-    cs = _checksum(profile.x_dev, 0x7F, 0xFF, b7, include_b5=False)
+    cs = _checksum(profile.x_dev, b5, 0xFF, b7, include_b5=False)
 
     bits = (
         device_id
-        + format(0x7F, "08b")
+        + format(b5, "08b")
         + format(0xFF, "08b")
         + format(b7, "08b")
         + format(cs, "08b")
@@ -222,8 +246,9 @@ def decode_signal(pulses: list[int], profile: DeviceProfile | None = None) -> di
 
     channel_flag is 0 for a direct channel-table match. Some remote models
     (see DeviceProfile.channel_flag) OR an extra 0x80 into b5 on every
-    channel; if the direct match fails, this also tries the channel table
-    with that bit masked out, and reports the bit that had to be masked as
+    channel, CC included (cv=0xFFFF instead of the plain 0x7FFF sentinel);
+    if the direct match fails, this also tries the channel table with that
+    bit masked out, and reports the bit that had to be masked as
     channel_flag so the caller (the calibration flow) can persist it.
     """
     bits = _extract_bits(pulses)
@@ -238,6 +263,9 @@ def decode_signal(pulses: list[int], profile: DeviceProfile | None = None) -> di
     channel_flag = 0
     if cv == 0x7FFF:
         channel = "CC"
+    elif cv == 0xFFFF:  # CC with channel_flag's 0x80 OR'd into b5 (0x7F -> 0xFF)
+        channel = "CC"
+        channel_flag = 0x80
     elif cv in _CH_VALS_REVERSE:
         channel = _CH_VALS_REVERSE[cv]
     else:

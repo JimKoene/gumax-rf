@@ -234,12 +234,16 @@ def test_encode_applies_channel_flag_to_b5():
     assert b8_flagged == 0xF7
 
 
-def test_b8_and_b9_against_local_zonnescherm_captures():
-    """Full K1+K2+K9 calibration + round-trip, using real zonnescherm-remote
-    raw captures kept out of the public repo — see raw_captures.py's
-    docstring. Skipped without that (gitignored) file. This exercises the
-    exact bug this fix addresses: decode_signal() failing to recognize
-    K1/K2/K9 on this remote model, which stalled the calibration wizard."""
+def test_b8_and_b9_against_local_full_triplet_captures():
+    """Full K1+K2+K9 calibration + round-trip, using real raw captures kept
+    out of the public repo — see raw_captures.py's docstring. Skipped
+    without that (gitignored) file. Runs against every label with a full
+    K1/K2/K9 triplet, regardless of whether that remote sets channel_flag —
+    all captured remotes are the same product; the flag is a per-remote
+    trait, not a way to pick which remotes this test covers. This exercises
+    the bug this fix addresses: decode_signal() failing to recognize
+    K1/K2/K9 on remotes that do set the flag, which stalled the
+    calibration wizard for them specifically."""
     try:
         from .raw_captures import RAW_CAPTURES
     except ImportError:
@@ -256,17 +260,15 @@ def test_b8_and_b9_against_local_zonnescherm_captures():
     from _protocol import encode as ha_encode
     from _protocol import infer_x_dev as ha_infer_x_dev
 
-    zonnescherm_labels = [
-        label for label in RAW_CAPTURES if label.startswith("zonnescherm")
+    triplet_labels = [
+        label for label, entries in RAW_CAPTURES.items()
+        if {1, 2, 9} <= {ch for ch, _cmd in entries}
     ]
-    if not zonnescherm_labels:
-        pytest.skip("no zonnescherm-labelled entries in raw_captures.py")
+    if not triplet_labels:
+        pytest.skip("no full K1/K2/K9 triplet in raw_captures.py")
 
-    for label in zonnescherm_labels:
+    for label in triplet_labels:
         entries = RAW_CAPTURES[label]
-        channels_present = {ch for ch, _cmd in entries}
-        if not {1, 2, 9} <= channels_present:
-            continue  # e.g. zonnescherm1 only has K1 — not a full triplet
 
         signals = {}
         for (ch, cmd), raw in entries.items():
@@ -274,7 +276,6 @@ def test_b8_and_b9_against_local_zonnescherm_captures():
             sig = decode_signal(pulses)
             assert sig is not None, f"{label} K{ch}/{cmd} failed to decode"
             assert sig["channel"] == ch, f"{label} K{ch}/{cmd} channel mismatch"
-            assert sig["channel_flag"] == 0x80, f"{label} K{ch}/{cmd} expected channel_flag 0x80"
             signals[ch] = sig
 
         k1, k2, k9 = signals[1], signals[2], signals[9]
@@ -309,7 +310,7 @@ def test_b8_and_b9_against_local_zonnescherm_captures():
             assert ref_signal["b9"] == sig["b9"], f"{label} K{ch} re-encode b9 mismatch"
 
         # Every other captured (channel, command) for this remote — e.g.
-        # zonnescherm2's K1 "down" (K1 "up" was the one folded into
+        # remote4's K1 "down" (K1 "up" was the one folded into
         # signals[1]/the triplet above — entries.items() keeps insertion
         # order, and "down" was added after "up") and both CC directions,
         # captured in a follow-up debugging session for a live "K1/CC don't

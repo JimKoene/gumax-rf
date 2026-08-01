@@ -1,3 +1,6 @@
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration) [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+![version](https://img.shields.io/github/v/release/jimkoene/gumax-rf)
+
 # Gumax RF Bridge
 Control Gumax roller shutters / awnings from Home Assistant via an ESP32 + CC1101 RF module.
 The custom integration will allow the creation of a new virtual remote or allow you to use your existing one.
